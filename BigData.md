@@ -1101,7 +1101,8 @@ public class HdfsClient {
 
 
 # 数据分析
-
+## Apache Hive
+![Apache-Hive](images/BigData/Apache-Hive架构图.png)
 ## Apache Storm
 
 在Storm中，需要先设计一个实时计算结构，我们称之为拓扑（topology）。之后，这个拓扑结构会被提交给集群，其中主节点（master node）负责给工作节点（worker node）分配代码，工作节点负责执行代码。在一个拓扑结构中，包含spout和bolt两种角色。数据在spouts之间传递，这些spouts将数据流以tuple元组的形式发送；而bolt则负责转换数据流。
