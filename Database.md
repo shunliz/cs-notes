@@ -2672,7 +2672,7 @@ INSERT IGNORE INTO user (name) VALUES ('telami')
 
 **解决方案2：on duplicate key update**
 
-当primary或者unique重复时，则执行`update`语句，如`update`后为无用语句，如`id=id`，则同1功能相同，但错误不会被忽略掉。在公众号顶级架构师后台回复“架构整洁”，获取一份惊喜礼包。例如，为了实现name重复的数据插入不报错，可使用一下语句：
+当primary或者unique重复时，则执行`update`语句，如`update`后为无用语句，如`id=id`，则同1功能相同，但错误不会被忽略掉。例如，为了实现name重复的数据插入不报错，可使用一下语句：
 
 ```mysql
 INSERT INTO user (name) VALUES ('telami') ON duplicate KEY UPDATE id = id 
