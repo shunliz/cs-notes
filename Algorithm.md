@@ -1206,6 +1206,18 @@ public class Solution {
 
 
 
+### Radix-Tree
+
+详见[Radix树](refs/radix-tree.md)
+
+
+
+### LSM树
+
+详见[LSM 树](refs/lsm-tree.md)
+
+
+
 ### 树状数组（Fenwick Tree）
 
 树状数组（Fenwick Tree / Binary Indexed Tree）。

@@ -122,6 +122,8 @@ JVM包含**堆**、**元空间**、**Java虚拟机栈**、**本地方法栈**、
 
 ![JVM架构](images/JVM/JVM架构.png)
 
+![Image](images/JVM/JVMModel.jpeg)
+
 
 
 **JVM常量池**

@@ -3884,6 +3884,334 @@ Error 类是指 java 运行时系统的内部错误和资源耗尽错误。应�
 
 
 
+# 高级语法
+
+## Lambda表达式
+
+### Lambda表达式的语法
+
+```java
+() -> 5  // 1. 不需要参数,返回值为 5  
+x -> 2 * x  // 2. 接收一个参数(数字类型),返回其2倍的值  
+(x, y) -> x – y  // 3. 接受2个参数(数字),并返回他们的差值 
+(int x, int y) -> x + y  // 4. 接收2个int型整数,返回他们的和 
+(String s) -> System.out.print(s) // 5. 接受一个 string 对象,并在控制台打印,不返回任何值(看起来像是返回void)  
+```
+
+### 函数式接口
+
+再对上面进行举例说明之前，必须先来理解下函数式接口，因为Lambda是建立在函数式接口的基础上的。
+
+  （1）只包含一个抽象方法的接口，称为函数式接口。
+
+ （2）你可以通过 Lambda 表达式来创建该接口的对象。
+
+ （3）我们可以在任意函数式接口上使用 @FunctionalInterface 注解，这样做可以检测它是否是一个函数式接口，同时 javadoc 也会包含一条声明，说明这个接口是一个函数式接口。
+
+在实际开发者有两个比较常见的函数式接口：**Runnable接口，Comparator接口**
+
+```java
+public class Test {
+    
+    public static void main(String[] args) {
+        
+        // 1.1使用匿名内部类  
+        new Thread(new Runnable() {  
+            @Override  
+            public void run() {  
+                System.out.println("Hello world !");  
+            }  
+        }).start();  
+          
+        // 1.2使用 lambda 获得Runnable接口对象  
+        new Thread(() -> System.out.println("Hello world !")).start();  
+        
+//=============================================================================
+        
+        // 2.1使用匿名内部类  
+        Runnable race1 = new Runnable() {  
+            @Override  
+            public void run() {  
+                System.out.println("Hello world !");  
+            }  
+        };  
+          
+        // 2.2使用 lambda直接获得接口对象 
+        Runnable race2 = () -> System.out.println("Hello world !");          
+        
+        // 直接调用 run 方法(没开新线程哦!)  
+        race1.run();  
+        race2.run();  
+    }
+}
+/*输出结果
+ * Hello world !
+ * Hello world !
+ * Hello world !
+ * Hello world !
+ *／
+```
+
+```java
+public class TestArray {
+    
+    public static void main(String[] args) {
+        String[] players = {"zhansgan", "lisi", "wangwu", "zhaoliu",  "wangmazi"};  
+
+        // 1.1 使用匿名内部类根据 surname 排序 players  
+        Arrays.sort(players, new Comparator<String>() {  
+            @Override  
+            public int compare(String s1, String s2) {  
+                return (s1.compareTo(s2));  
+            }  
+        });  
+        
+        // 1.2 使用 lambda 排序,根据 surname  
+        Arrays.sort(players, (String s1, String s2) ->  s1.compareTo(s2));    
+    }
+}
+```
+
+### 方法引用
+
+**首先注意：**方法引用，不是方法调用！方法引用，不是方法调用！方法引用，不是方法调用！
+
+函数式接口的实例可以通过 lambda 表达式、 方法引用、构造方法引用来创建。方法引用是 lambda 表达式的语法糖，任何用方法引用的地方都可由lambda表达式替换，
+
+但是并不是所有的lambda表达式都可以用方法引用来替换。
+
+```java
+public class TestArray {
+    
+    public static void main(String[] args) {
+         List<String> list = Arrays.asList("xuxiaoxiao", "xudada", "xuzhongzhong");
+           list.forEach(value -> System.out.println(value));
+        list.forEach(System.out::println);
+    }
+    /* 输出：
+     * xuxiaoxiao
+     * xudada
+     * xuzhongzhong
+     */
+}
+```
+
+| 类别         | 使用形式                     | 示例                                                         |
+| ------------ | ---------------------------- | ------------------------------------------------------------ |
+| 静态方法引用 | 类名 :: 静态方法名           | public static int compareByWeight(Apple a1, Apple a2) {<br />}<br />appleList.sort(Apple::compareByWeight); |
+| 实例方法引用 | 对象名(引用名) :: 实例方法名 | public int compareByWeight(Apple a1, Apple a2) {<br />}<br />appleList.sort(comparator::compareByWeight); |
+| 类方法引用   | 类名 :: 实例方法名           | public int compareByWeight(Apple other) {<br />}<br />appleList.sort(Apple::compareByWeight); |
+| 构造方法引用 | 类名 :: new                  | System.out.println(test.getString(String::new));             |
+
+## Java8 Stream
+
+### 1、什么是Stream
+
+Stream是一种可供流式操作的数据视图有些类似数据库中视图的概念它不改变源数据集合如果对其进行改变的操作它会返回一个新的数据集合。
+
+总的来讲它有三大特性：在之后我们会对照着详细说明
+
+​    **1、stream不存储数据**
+
+​    **2、stream不改变源数据**
+
+​    **3、stream的延迟执行特性**
+
+### **2、Stream优点**
+
+1. 代码简洁，函数式编程写出的代码简洁且意图明确，使用*stream*接口让你从此告别*for*循环。
+2. 多核友好，Java函数式编程使得编写并行程序从未如此简单，你需要的全部就是调用一下`parallel()`方法。
+
+### 3、Stream API常用方法
+
+| Stream操作分类                    |                                                         |                                                              |
+| --------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| 中间操作(Intermediate operations) | 无状态(Stateless)                                       | unordered() filter() map() mapToInt() mapToLong() mapToDouble() flatMap() flatMapToInt() flatMapToLong() flatMapToDouble() peek() |
+| 有状态(Stateful)                  | distinct() sorted() sorted() limit() skip()             |                                                              |
+| 结束操作(Terminal operations)     | 非短路操作                                              | forEach() forEachOrdered() toArray() reduce() collect() max() min() count() |
+| 短路操作(short-circuiting)        | anyMatch() allMatch() noneMatch() findFirst() findAny() |                                                              |
+
+**常用中间件**
+
+   filter：过滤流，过滤流中的元素，返回一个符合条件的Stream
+
+   map：转换流，将一种类型的流转换为另外一种流。（mapToInt、mapToLong、mapToDouble 返回int、long、double基本类型对应的Stream）
+
+ flatMap：简单的说，就是一个或多个流合并成一个新流。（flatMapToInt、flatMapToLong、flatMapToDouble 返回对应的IntStream、LongStream、DoubleStream流。）
+
+ distinct：返回去重的Stream。
+
+ sorted：返回一个排序的Stream。
+
+  peek：主要用来查看流中元素的数据状态。
+
+   limit：返回前n个元素数据组成的Stream。属于短路操作
+
+   skip：返回第n个元素后面数据组成的Stream。 
+
+**结束操作**
+
+ forEach: 循环操作Stream中数据。
+
+ toArray: 返回流中元素对应的数组对象。
+
+ reduce: 聚合操作，用来做统计。
+
+ collect: 聚合操作，封装目标数据。
+
+min、max、count: 聚合操作，最小值，最大值，总数量。
+
+  anyMatch: 短路操作，有一个符合条件返回true。
+
+  allMatch: 所有数据都符合条件返回true。
+
+noneMatch: 所有数据都不符合条件返回true。
+
+  findFirst: 短路操作，获取第一个元素。
+
+   findAny: 短路操作，获取任一元素。
+
+forEachOrdered: 暗元素顺序执行循环操作
+
+### 4、示例
+
+**map**
+
+```java
+public class Person {
+    private Integer  id;
+    private String name;
+    private String sex;
+    private Integer age;
+    //提供get，set，和满参构造函数
+}
+```
+
+```java
+public class TestMap {
+
+    public static void main(String[] args) {
+        List<Person> persionList = new ArrayList<Person>();
+        persionList.add(new Person(1,"张三","男",38));
+        persionList.add(new Person(2,"小小","女",2));
+        persionList.add(new Person(3,"李四","男",65));
+        persionList.add(new Person(4,"王五","女",20));
+        persionList.add(new Person(5,"赵六","男",38));
+        persionList.add(new Person(6,"大大","男",65));
+
+        //1、只取出该集合中所有姓名组成一个新集合
+        List<String> nameList=persionList.stream().map(Person::getName).collect(Collectors.toList());
+        System.out.println(nameList.toString());
+
+        //2、只取出该集合中所有id组成一个新集合
+        List<Integer> idList=persionList.stream().mapToInt(Person::getId).boxed().collect(Collectors.toList());
+        System.out.println(idList.toString());
+
+        //3、list转map，key值为id，value为Person对象
+        Map<Integer, Person> personmap = persionList.stream().collect(Collectors.toMap(Person::getId, person -> person));
+        System.out.println(personmap.toString());
+
+        //4、list转map，key值为id，value为name
+        Map<Integer, String> namemap = persionList.stream().collect(Collectors.toMap(Person::getId, Person::getName));
+        System.out.println(namemap.toString());
+
+        //5、进行map集合存放，key为age值 value为Person对象 它会把相同age的对象放到一个集合中
+        Map<Integer, List<Person>> ageMap = persionList.stream().collect(Collectors.groupingBy(Person::getAge));
+        System.out.println(ageMap.toString());
+
+        //6、获取最小年龄
+        Integer ageMin = persionList.stream().mapToInt(Person::getAge).min().getAsInt();
+        System.out.println("最小年龄为: "+ageMin);
+
+        //7、获取最大年龄
+        Integer ageMax = persionList.stream().mapToInt(Person::getAge).max().getAsInt();
+        System.out.println("最大年龄为: "+ageMax);
+
+        //8、集合年龄属性求和
+        Integer ageAmount = persionList.stream().mapToInt(Person::getAge).sum();
+        System.out.println("年龄总和为: "+ageAmount);
+        
+    }
+}
+```
+
+**filter**
+
+```java
+public class TestFilter {
+
+    public static void main(String[] args) {
+        List<Person> persionList = new ArrayList<Person>();
+        persionList.add(new Person(1, "张三", "男", 8));
+        persionList.add(new Person(2, "小小", "女", 2));
+        persionList.add(new Person(3, "李四", "男", 25));
+        persionList.add(new Person(4, "王五", "女", 8));
+        persionList.add(new Person(5, "赵六", "女", 25));
+        persionList.add(new Person(6, "大大", "男", 65));
+
+        //1、查找年龄大于20岁的人数
+        long  age=persionList.stream().filter(p->p.getAge()>20).count();
+        System.out.println(age);
+
+        //2、查找年龄大于20岁，性别为男的人数
+       List<Person>  ageList=persionList.stream().filter(p->p.getAge()>20).filter(p->"男".equals(p.getSex())).collect(Collectors.toList());
+        System.out.println(ageList.size());
+
+    }
+    /*
+     *运行结果：
+     *  3
+     *  2
+     */
+}
+```
+
+**sorted**
+
+```java
+public class TestSort {
+
+    String[] arr1 = {"abc","a","bc","abcd"};
+
+    /**
+     * 按照字符长度排序
+     */
+    @Test
+    public void testSorted1_(){
+        Arrays.stream(arr1).sorted(Comparator.comparing(String::length)).forEach(System.out::println);
+        //输出：a、bc、abc、abcd
+    }
+
+    /**
+     * 倒序
+     * reversed(),java8泛型推导的问题，所以如果comparing里面是非方法引用的lambda表达式就没办法直接使用reversed()
+     * Comparator.reverseOrder():也是用于翻转顺序，用于比较对象（Stream里面的类型必须是可比较的）
+     * Comparator. naturalOrder()：返回一个自然排序比较器，用于比较对象（Stream里面的类型必须是可比较的）
+     */
+    @Test
+    public void testSorted2_(){
+        Arrays.stream(arr1).sorted(Comparator.comparing(String::length).reversed()).forEach(System.out::println);
+        //输出：abcd、abc、bc、a
+        Arrays.stream(arr1).sorted(Comparator.reverseOrder()).forEach(System.out::println);
+        //输出：bc、abcd、abc、a
+        Arrays.stream(arr1).sorted(Comparator.naturalOrder()).forEach(System.out::println);
+        //输出：a、abc、abcd、bc
+    }
+
+    /**
+     * 先按照首字母排序
+     * 之后按照String的长度排序
+     */
+    @Test
+    public void testSorted3_(){
+        Arrays.stream(arr1).sorted(Comparator.comparing(this::com1).thenComparing(String::length)).forEach(System.out::println);
+    }    //输出：a、abc、abcd、bc
+    public char com1(String x){
+        return x.charAt(0);
+    }
+}
+```
+
 # Others
 
 ## Annotation
