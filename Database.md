@@ -2878,6 +2878,49 @@ desc 和asc混用时会导致索引失效
 
 
 
+# 横竖表转换
+
+横表
+
+| username | chinese | math | physics |
+| -------- | ------- | ---- | ------- |
+| Lily     | 86      | 49   | 91      |
+| Jim      | 75      | 84   | 94      |
+| Kay      | 74      | 83   | 93      |
+
+竖表
+
+|username| course|score|
+| -------- | ------- | ------- |
+|Jim|	physics|	94|
+|Jim|	math|	84|
+|Jim	|chinese	|75|
+|Kay	|physics	|93|
+|Kay	|math	|83|
+|Kay	|chinese	|74|
+|Lily	|physics	|91|
+|Lily	|math	|49|
+|Lily	|chinese	|86|
+
+横表转竖表
+
+```sql
+select username, 'chinese' as course, chinese as score from score union all 
+select username, 'math' as course, math as score from score union ALL
+select username, 'physics' as course, physics as score from score order by username, course desc
+```
+
+竖表转横表
+
+```sql
+
+select username, sum(case course when 'chinese' then score else 0 end) chinese,
+       sum(case course when 'math' then score else 0 end) math,
+       sum(case course when 'physics' then score else 0 end) physics from score2 group by username
+```
+
+
+
 # MySQL原理
 
 ## 架构设计

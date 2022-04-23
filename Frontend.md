@@ -49,7 +49,6 @@ var person = {
 var x = this;
 
 严格模式下，如果单独使用，this 也是指向全局(Global)对象。
-
 "use strict"; var x = this;
 
 **函数中使用 this（默认）**
@@ -351,7 +350,74 @@ let f1 = new Foo();
 3. JS线程处理完当前的所有任务以后（执行栈为空），它会先去微任务队列获取事件，并将微任务队列中的所有事件一件件执行完毕，直到微任务队列为空后再去宏任务队列中取出一个事件执行（每次取完一个宏任务队列中的事件执行完毕后，都先检查微任务队列）。
 4. 然后不断循环第3步
 
+### 事件机制
 
+**1. on+'event'**
+
+如：onclick、onmouseover等支持最广，但是要在一个元素上添加多次同一个事件，只以最后一次绑定的事件为准
+
+**2. addEventListener**
+
+W3C标准方法，支持添加多个事件
+
+```
+dom.addEventListener(type, method, useCapture)
+	
+obj.addEventListener('click', method1, false)
+```
+
+ **第三个参数作用**
+
+第三个参数为boolean，定义事件 ‘在捕获阶段触发’ 还是 ‘在冒泡阶段触发’，默认为false（冒泡阶段）
+
+```
+<dom1>
+    <dom2>
+        <dom3></dom3>
+    </dom2>
+</dom1>
+dom1.addEventListener('click', method1, false)
+dom2.addEventListener('click', method2, false)
+dom3.addEventListener('click', method3, false)
+// 冒泡阶段触发，执行顺序3-2-1
+
+dom1.addEventListener('click', method1, true)
+dom2.addEventListener('click', method2, true)
+dom3.addEventListener('click', method3, true)
+// 捕获阶段触发，执行顺序1-2-3
+```
+
+**3. attachEvent**
+
+IE的方法，其他浏览器不支持，支持绑定多个事件，同一个元素的多个事件与addEventListener()执行顺序相反，为3-2-1
+
+#### 事件委托
+
+那什么叫`事件委托`呢？它还有一个名字叫事件代理，`JavaScript`高级程序设计上讲：事件委托就是利用事件冒泡，只指定一个事件处理程序，就可以管理某一类型的所有事件
+
+事件委托是利用事件的冒泡原理来实现的，何为事件冒泡呢？就是事件从最深的节点开始，然后逐步向上传播事件，举个例子：页面上有这么一个节点树，div>ul>li>a;比如给最里面的a加一个click点击事件，那么这个事件就会一层一层的往外执行，执行顺序a>li>ul>div，有这样一个机制，那么我们给最外面的div加点击事件，那么里面的ul，li，a做点击事件的时候，都会冒泡到最外层的div上，所以都会触发，这就是事件委托，委托它们父级代为执行事件。
+
+#### 事件触发三个阶段
+
+**1. 捕获阶段**
+
+事件从根节点流向目标节点，途中流经各个DOM节点，在各个节点触发捕获事件，直到到达目标节点
+
+![捕获阶段](images/Frontend/事件机制-捕获阶段.png)
+
+**2. 目标阶段**
+
+事件到达目标节点时，就到了目标阶段，事件在目标节点上被触发
+
+**3. 冒泡阶段**
+
+事件在目标节点上触发后不会终止，一层层向上冒泡，回溯到根节点
+
+![冒泡阶段](images/Frontend/事件机制-冒泡阶段.png)
+
+```
+冒泡阶段可以人为干预，事件到当前节点后阻止事件向上冒泡，而另外两个阶段不能人为干预
+```
 
 ## ES5/6
 

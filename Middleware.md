@@ -5217,6 +5217,26 @@ MethodInterceptor是AOP项目中的拦截器，它拦截的目标是方法，即
 
 
 
+![img](https://img2018.cnblogs.com/blog/1158841/201907/1158841-20190724210248256-956610315.png)
+
+一个Bean的构造函数初始化时是最先执行的，这个时候，**bean属性还没有被注入**；
+
+@PostConstruct注解的方法优先于InitializingBean的afterPropertiesSet执行，这时Bean的属性竟然被注入了；
+
+spring很多组件的初始化都放在afterPropertiesSet做,想和spring一起启动，可以放在这里启动;
+
+spring为bean提供了两种初始化bean的方式，实现InitializingBean接口，实现afterPropertiesSet方法，或者在配置文件中同过init-method指定，两种方式可以同时使用；
+
+实现InitializingBean接口是直接调用afterPropertiesSet方法，比通过反射调用init-method指定的方法效率相对来说要高点；但是init-method方式消除了对spring的依赖；
+
+如果调用afterPropertiesSet方法时出错，则不调用init-method指定的方法。
+
+Bean在实例化的过程中：
+
+Constructor > @PostConstruct > InitializingBean > init-method
+
+
+
 ### 非拦截器Http请求流程
 
 用户的普通Http请求执行顺序：
@@ -5255,7 +5275,15 @@ MethodInterceptor是AOP项目中的拦截器，它拦截的目标是方法，即
 
 ## Others
 
+## SpringBoot解决跨域问题
 
+```
+1，返回新的CorsFilter
+2，重写WebMvcConfigurer
+3，使用注解@CrossOrigin
+4，手动设置响应头（HttpServletResponse）
+5，采用nginx做动态代理
+```
 
 
 
