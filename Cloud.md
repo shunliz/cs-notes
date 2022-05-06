@@ -79,9 +79,7 @@ containerd-shim 是 containerd 的一个组件，主要是用于剥离 container
 
 容器运行时engine是一个守护进程，位于容器调度和容器创建的二进制文件的实际实现之间。这个守护进程不一定需要作为根用户运行，它监听来自调度程序的请求。它通过容器标准（OCI），使用外部二进制文件来实际创建或删除容器
 
-例如，在Kubernetes中，容器运行时可以是cri-o或cri-containerd，它监听来自kubelet的请求，kubelet是通过cri接口从位于每个节点的调度程序发出的代理，容器运行时通过OCI标准方式，包括OCI-Image和OCI-Runtime，调用runc（实现OCI运行时规范的二进制文件，或者如：kata-runtime）来创建容器，调用flannel（实现CNI的二进制文件，或者如：calico等）来配置网络。上述过程，如下图：
-
-[<img src="http://dockone.io/uploads/article/20190805/6663438f707d3b7fa51d1a08f42f4f37.png" alt="cni2.png" style="zoom:50%;" />
+例如，在Kubernetes中，容器运行时可以是cri-o或cri-containerd，它监听来自kubelet的请求，kubelet是通过cri接口从位于每个节点的调度程序发出的代理，容器运行时通过OCI标准方式，包括OCI-Image和OCI-Runtime，调用runc（实现OCI运行时规范的二进制文件，或者如：kata-runtime）来创建容器，调用flannel（实现CNI的二进制文件，或者如：calico等）来配置网络。上述过程,
 
 容器运行时需要执行以下操作才能真正创建可用的容器：
 
@@ -1875,6 +1873,20 @@ OpenMANO是NFV-O（网络功能虚拟化编排器）的参考实现。它通过�
 - Tata Telco Cloud——由Tata公司主导提供开放的VNF管理，以在OpenStack平台上启用NFV服务编排的项目
 - RIFT.io在8月的英特尔开发者论坛上向全世界推出了RIFT.ware，并在2015年年底向开源社区宣称发布了RIFT.ware 4.0（一种用于NFV管理和编排的完整解决方案）
 - Ubuntu Juju：Canonical的Juju是开源的通用VNF管理器。但是，它更多的是服务建模系统，其中服务，相互关系和规模可以建模。
+
+# 公有云
+
+## GCP
+
+### Dataproc
+
+## AWS
+
+# Serverless
+
+## firecracker
+
+## knative
 
 # Cloud Native
 
