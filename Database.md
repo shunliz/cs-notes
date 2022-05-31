@@ -2453,7 +2453,6 @@ select * from abc_innodb where a = 13 and b = 16 and c = 4;
 ![在这里插入图片描述](images/Database/20201024115218222.png)
 
 
-
 ## 失效场景
 
 **场景一：where语句中包含or时，可能会导致索引失效**
