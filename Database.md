@@ -1881,6 +1881,21 @@ InnoDB存储引擎在创建表的过程中就会根据主键自动构造一棵B+
 ![Innodb-非聚集索引](images/Database/Innodb-非聚集索引.png)
 
 
+![图片](D:\code\gitee\cs-notes\images\Database\261011d237bec993821aa198b97ae8ce.png)
+
+
+
+聚集索引数据存储的是数据
+![图片](D:\code\gitee\cs-notes\images\Database\7c635d682bd3cdc421bb9eea33a5a413.png)
+
+
+
+二级索引数据存储的是主键id
+![图片](https://img-blog.csdnimg.cn/img_convert/3104c8c3adf36e8931862fe8a0520f5d.png)
+
+**如果某个查询语句使用了二级索引，但是查询的数据不是主键值，这时在二级索引找到主键值后，需要去聚簇索引中获得数据行，这个过程就叫作「回表」，也就是说要查两个 B+ 树才能查到数据。不过，当查询的数据是主键值时，因为只在二级索引就能查询到，不用再去聚簇索引查，这个过程就叫作「索引覆盖」，也就是只需要查一个 B+ 树就能找到数据。**
+
+
 
 ### 全文索引(FULLTEXT)
 
@@ -2564,6 +2579,34 @@ select * from t where k1=1 and k3=3;
 水平切分又称为 Sharding，它是将同一个表中的记录拆分到多个结构相同的表中。当一个表的数据不断增多时，Sharding 是必然的选择，它可以将数据分布到集群的不同节点上，从而缓存单个数据库的压力。
 
 ![img](images/Database/007S8ZIlly1gjjfy33yx2j30fm05zwg9.jpg)
+
+**架构-水平切分架构之基因法**
+
+假设我们一条帖子的字段包含：帖子ID，发起的用户ID
+ 先考虑一个业务，用户要发帖子，数量很大，需要分库分表，如何进行拆分
+ 业务：查询用户的所有帖子、查询帖子详情。
+
+普通水平切分：
+ 　根据帖子ID切分则无法一次查询用户的所有帖子；
+ 　根据用户ID切分则需要先查帖子所属用户；
+
+什么是分库基因？
+ 　通过uid分库，假设分为16个库，采用uid%16的方式来进行数据库路由，这里的uid%16，其本质是uid的最后4个bit决定这行数据落在哪个库上，这4个bit，就是分库基因。
+
+什么是基因法分库？
+
+![img](D:\code\gitee\cs-notes\images\Database\dbsplithorizontalgene.png)
+
+如上图所示，uid=666的用户发布了一条帖子（666的二进制表示为：1010011010）：
+ 　使用uid%16分库，决定这行数据要插入到哪个库中
+ 　分库基因是uid的最后4个bit，即1010
+ 　在生成tid时，先使用一种分布式ID生成算法生成前60bit（上图中绿色部分）
+ 　将分库基因加入到tid的最后4个bit（上图中粉色部分）
+ 　拼装成最终的64bit帖子tid（上图中蓝色部分）
+
+这般，保证了同一个用户发布的所有帖子的tid，都落在同一个库上，tid的最后4个bit都相同，于是：
+ 　　　通过uid%16能够定位到库
+ 　　　通过tid%16也能定位到库
 
 
 
@@ -3528,4 +3571,101 @@ mysql> show variables like 'slave_parallel%';
 
 
 
-# ClickHouse
+# 分布式关系数据库
+
+最近市面上出现了几种“横向扩展”的SQL数据库。更棒的是，其中一些数据库可以处理地理位置分散的服务器，而不牺牲一致性。由于光速带来的限制，边远的服务器节点比本地节点需要更长的时间来更新，但几种技术可以缓解这个问题，包括使用共识组quora和超高速网络及存储。
+
+通常，你一直使用的数据库和想要使用的新分布式数据库应尽可能兼容，尽量降低模式和应用程序转换成本。简单的情况是，你可以迁移模式和数据，然后只需更改应用程序中的连接字符串。复杂的情况是，你需要完成数据转换过程，全面重写存储过程和触发器，大范围重写应用程序的数据层，包括SQL查询。
+
+**Amazon RDS和Amazon Aurora**
+
+Amazon RDS(关系数据库服务)这种Web服务让用户更容易在云端安装、操作和扩展关系数据库。Amazon RDS支持MySQL、MariaDB、PostgreSQL、Oracle Database和微软SQL Server。
+
+可以使用面向故障切换的同步辅助实例来配置Amazon RDS数据库，以实现高可用性。遗憾的是，你无法从备用辅助实例中读取。可以使用MySQL、MariaDB或PostgreSQL Read Replicas来加强读取扩展，但复制是异步的，因此副本的状态可能落后于主实例的状态。
+
+Amazon Aurora是Amazon RDS中的一项服务，可在快速分布式存储上提供高性能的MySQL和PostgreSQL数据库集群。你可以在数据库集群中最多创建15个Aurora Replicas以支持只读查询，可以在多个可用区(AZ)中创建副本，以实现全局分布。
+
+据亚马逊声称，Aurora可以提供最多五倍于MySQL的吞吐量，最多三倍于PostgreSQL的吞吐量，无需更改大多数现有应用程序。亚马逊还声称更新Aurora读取副本的延迟时间约20毫秒，这比MySQL读取副本快得多。
+
+**Azure SQL Database**
+
+Azure SQL Database是一种全面托管的关系云数据库服务，提供广泛的SQL Server引擎兼容性，让你可以动态增减数据库资源。Azure SQL Database包括创建活动地理副本的选项，这些地理副本是地理位置分散的辅助数据库。
+
+在相同或不同的区域支持最多四个辅助数据库，辅助数据库还可用于只读查询。如果你需要将主数据库故障切换到其中一个辅助数据库，可以手动或通过API执行此操作。
+
+**ClustrixDB**
+
+ClustrixDB现归MariaDB所有，这个横向扩展的集群关系HTAP(混合事务/分析处理)数据库采用无共享架构设计。ClustrixDB主要与MySQL和MariaDB兼容。我测评ClustrixDB时，该产品不支持空间扩展类型和全文搜索;上一个版本仍缺乏这两项功能。
+
+为ClustrixDB添加节点可以扩展读写。ClustrixDB允许集群跨多个区域部署，以便在非计划区域故障期间提供容错功能。在独立实验室(但不是《InfoWorld》)运行的测试)中，ClustrixDB能够以15毫秒的延迟每秒处理4万个事务，其负载是90%的读取和10%的写入，为其提供了适用于电子商务的“网络星期一”可扩展性。
+
+**CockroachDB**
+
+CockroachDB是一种可横向扩展、与PostgreSQL兼容的开源分布式SQL数据库，由熟悉Google Cloud Spanner的前谷歌员工开发。CockroachDB借鉴了Spanner的数据存储系统设计，并使用Raft算法在其节点之间达成共识。CockroachDB不需要GPS和同步Spanner的原子钟。
+
+CockroachDB立足于事务性一致性的键值存储系统RocksDB上。CockroachDB背后的主要设计目标是支持ACID事务、横向扩展性和(最重要的)生存性，因此得名。CockroachDB默认使用可序列化隔离模式，这胜过其他大多数数据库实施的隔离机制。
+
+我在2018年初测试CockroachDB时，其JOIN性能不是很好。从那以后，这点已得到解决。CockroachDB支持将集群分散在多个可用区上，还在谷歌云平台和AWS上提供全面托管的云数据库集群。
+
+**Google Cloud Spanner**
+
+Google Cloud Spanner是一种托管分布式数据库，拥有NoSQL数据库的可扩展性，同时保留了SQL兼容性、关系模式、ACID事务和外部一致性。Spanner看起来像是颠覆了CAP定理。
+
+Spanner是分片、全局分布、复制的，使用Paxos算法在节点之间达成共识。Spanner使用分两个阶段的提交以确保强一致性，但将Paxos组视为事务的成员。每个Paxos组只需要额定数(quorum)，而不是需要100%的成员。
+
+在谷歌内部使用时，Spanner的可用性超过五个9，即高于99.999%，这意味着每年停机时间不到5分钟。这足以让大多数程序员通常不必为编写代码来处理Spanner可用性故障而操心。
+
+Spanner使用Google Common SQL，这是ANSI 2011 SQL的一种方言。Common SQL与PostgreSQL、MySQL、SQL Server或Oracle Database使用的任何SQL方言都不完全相同，数据类型略有不同，数据操纵方面大不相同。
+
+
+
+# NOSQL
+
+## HBASE
+
+## hive
+
+## pig
+
+
+
+## rocksdb
+
+## ClickHouse
+
+
+
+mongo
+
+cassandra
+
+
+
+redis
+
+zookeeper
+
+memcache
+
+etcd
+
+consul
+
+
+
+bigtable
+
+bigquery
+
+dataproc
+
+dataflow
+
+
+
+dynamodb
+
+
+
+neo4j
+
