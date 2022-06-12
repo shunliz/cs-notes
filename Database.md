@@ -1198,6 +1198,57 @@ MVCC全称Multi-Version Concurrency Control，即多版本的并发控制协议�
 
 
 
+**MVCC原理举例说明**
+
+MVCC 的目的就是多版本并发控制，在数据库中的实现，就是为了解决读写冲突，它的实现原理主要是依赖记录中的 3个隐式字段，undo日志 ，Read View 来实现的。
+
+**三个隐藏字段**
+
+![img](D:\code\gitee\cs-notes\images\Database\3e69dd845f137cd94621fe846c49bc20.jpeg)DB_ROW_ID 是数据库默认为该行记录生成的唯一隐式主键，DB_TRX_ID 是当前操作该记录的事务 ID ,而 DB_ROLL_PTR 是一个回滚指针，用于配合 undo日志，指向上一个旧版本
+举例如：
+![img](D:\code\gitee\cs-notes\images\Database\1675509d9c00d0292868db2eca1ee47b.jpeg)
+![img](D:\code\gitee\cs-notes\images\Database\77b637ad1628ab9b599e1111bb1b0578.jpeg)
+![img](D:\code\gitee\cs-notes\images\Database\dc9c85cac9293c3ec9c3d53348215364.jpeg)
+
+从上面，我们就可以看出，不同事务或者相同事务的对同一记录的修改，会导致该记录的undo log成为一条记录版本线性表，既链表，undo log 的链首就是最新的旧记录，链尾就是最早的旧记录.
+undolog：回滚日志，保存了事务发生之前的数据的一个版本，作用：
+
+1. 可以用于回滚
+2. 同时可以提供多版本并发控制下的读（MVCC），也即非锁定读。
+3. 事务开始之前，将当前事务版本生成 undo log，undo log 也会产生 redo log 来保证 undo log 的可靠性。
+4. 当事务提交之后，undo log 并不能立马被删除，而是放入待清理的链表。
+5. 由 purge 线程判断是否有其它事务在使用 undo 段中表的上一个事务之前的版本信息，从而决定是否可以清理 undo log 的日志空间。
+
+
+
+**ReadView**
+
+什么是 Read View，说白了 Read View 就是事务进行快照读操作的时候生产的读视图 (Read View)，在该事务执行的快照读的那一刻，会生成数据库系统当前的一个快照，记录并维护系统当前活跃事务的 ID (当每个事务开启时，都会被分配一个 ID , 这个 ID 是递增的，所以最新的事务，ID 值越大)
+
+所以我们知道 Read View 主要是用来做可见性判断的, 即当我们某个事务执行快照读的时候，对该记录创建一个 Read View 读视图，把它比作条件用来判断当前事务能够看到哪个版本的数据，既可能是当前最新的数据，也有可能是该行记录的undo log里面的某个版本的数据。
+
+Read View遵循一个可见性算法，主要是将要被修改的数据的最新记录中的 DB_TRX_ID（即当前事务 ID ）取出来，与系统当前其他活跃事务的 ID 去对比（由 Read View 维护），如果 DB_TRX_ID 跟 Read View 的属性做了某些比较，不符合可见性，那就通过 DB_ROLL_PTR 回滚指针去取出 Undo Log 中的 DB_TRX_ID 再比较，即遍历链表的 DB_TRX_ID（从链首到链尾，即从最近的一次修改查起），直到找到满足特定条件的 DB_TRX_ID , 那么这个 DB_TRX_ID 所在的旧记录就是当前事务能看见的最新老版本.
+
+
+
+
+
+![img](D:\code\gitee\cs-notes\images\Database\094f5a65166af3483e3005689f785331.jpeg)
+举例说明：
+![img](D:\code\gitee\cs-notes\images\Database\bdaf0bcbb31973e544f889726f63e6d4.jpeg)在这
+分析：
+![img](D:\code\gitee\cs-notes\images\Database\8f2c8e29fd228a83e231fdafb8e7b417.jpeg)
+
+第二种情况：
+
+![img](D:\code\gitee\cs-notes\images\Database\d5f7bd19b846aac83db8009ffb95c5c5.jpeg)
+分析：
+![img](D:\code\gitee\cs-notes\images\Database\2e594481db65199b90e961d78f100a12.jpeg)
+
+最后完成的绘图：
+
+![img](D:\code\gitee\cs-notes\images\Database\b91634bb7e35dad25bdc2d44169190c3.jpeg)
+
 **MVCC应用场景**
 
 在Mysql的InnoDB引擎中，只有**已提交读**和**可重复读**这两种隔离级别的事务采用了MVCC机制：
@@ -1953,13 +2004,19 @@ Hash table size 553229, node heap has 17 buffer(s)
 
 # MySQL日志
 
+![image-20220611094736528](D:\code\gitee\cs-notes\images\Database\image-20220611094736528.png)
+
+
+
 **重做日志（redo log）、二进制日志（bin log）、回滚日志（undo log）、错误日志（error log）、慢查询日志（slow query log）、一般查询日志（general log）、中继日志（relay log）。**
+
+![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30312e706e67)
 
 ## 二进制日志(bin log)
 
 `binlog` 用于记录数据库执行的写入性操作(不包括查询)信息，以二进制的形式保存在磁盘中。`binlog` 是 `mysql`的逻辑日志(即SQL语句)，并且由 `Server` 层进行记录，使用任何存储引擎的 `mysql` 数据库都会记录 `binlog` 日志。`binlog` 是通过追加的方式进行写入的，可以通过`max_binlog_size` 参数设置每个 `binlog`文件的大小，当文件大小达到给定值之后，会生成新的文件来保存日志。
 
-
+![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343734373834302e706e67)
 
 **作用**
 
@@ -1995,6 +2052,8 @@ Hash table size 553229, node heap has 17 buffer(s)
 
 
 ## 重做日志(redo log)
+
+![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343935363737342e706e67)
 
 **重做日志是InnoDB引擎层日志，用来记录事务操作引起数据变化，记录的是数据页的物理修改。**包括两部分：
 
