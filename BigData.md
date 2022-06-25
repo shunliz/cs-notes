@@ -1741,3 +1741,11 @@ env.execute("Hot Items Job");
 直接运行 main 函数，就能看到不断输出的每个时间点的热门商品ID。
 
 ![实时计算TopN热榜](images/BigData/实时计算TopN热榜.png)
+
+# Impala
+
+# starRocks
+
+# ClickHouse
+
+# Elastic Search

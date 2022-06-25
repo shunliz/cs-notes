@@ -12,6 +12,21 @@
 
 通过cgroup设置进程使用CPU、内存和IO资源的限额。我们可以在`/sys/fs/cgroup/cpu/docker`下查看。
 
+我们都知道容器是通过cgroup技术来限制资源的使用的，cgroup定义了很多的子系统，常用的用于限制资源的有以下的几个：
+
+cpu子系统，主要限制进程的CPU使用率。
+
+cpuset 子系统，可以为 cgroup 中的进程分配单独的CPU节点或者内存节点。
+
+memory 子系统，可以限制进程的 Memory 使用量。
+
+blkio 子系统，可以限制进程的块设备IO。
+
+net_cls 子系统，可以标记 cgroup 中进程的网络数据包，然后可以使用 TC模块（Traffic Control）对数据包进行控制。
+
+其中对于CPU和内存的cgroup的限制可通过下面的图对应。
+![img](D:\code\gitee\cs-notes\images\cloud\85858e0a6958ed68838c956b60da7996.png)
+
 ### namespace：实现**资源隔离**
 
 mount namespace：让容器看上去拥有整个文件系统，容器有自己的/目录，可以执行mount和umount操作。
@@ -34,10 +49,6 @@ storage 部分负责镜像的存储、管理、拉取等 metadata 管理容器�
 containerd 主要流程如下：
 
 ![Image](images/cloud/641.png)
-
-*（图片来源于阿里云的公开课）*
-
-
 
 图中的 containerEngine 在 docker 中就是 docker-containerd 组件，创建容器记录的metadata，并请求 containerd 的 task 模块，task 模块会在 runtime 中创建 task 实例，分别会加入 task list， 监控 cgroup 等操作，每个 task 实例则调用 shim 去创建container。
 
@@ -1193,7 +1204,6 @@ kubectl patch sts web -p '{"spec":{"replicas":2}}' -n nginx-ss  #缩容
           maxSurge: 1
           maxUnavailable: 1
 
-
 **字段解释**
 **minReadySeconds**
 Kubernetes在等待设置的时间后才进行升级
@@ -1262,6 +1272,42 @@ kubectl rollout resume deployment update-deployment
 ```
 kubectl rolling-update frontend-v1 frontend-v2 --rollback
 ```
+
+**Deployment经典常用场景**
+
+1.创建一个Deployment对象来生成对应的Replica Set并完成Pod副本的创建过程
+
+2.检查Deployment的状态来看部署动作是否完成(Pod副本的数量是否达到预期的值)
+
+3.通过更新Deployment的PodTemplateSpec字段来声明Pod的新状态。这会创建一个新的ReplicaSet，Deployment会按照控制的速率将pod从旧的ReplicaSet移动到新的ReplicaSet中。更新Deployment以创建新的Pod (比如镜像升级)
+
+4.如果当前状态不稳定，回滚到之前的Deployment revision。每次回滚都会更新Deployment的revision。
+
+5.暂停Deployment以便于一次性修改多个PodTemplateSpec的配置项,之后再恢复Deployment,进行新的发布
+
+6.扩展Deployment以应对高负载
+
+7.查看Deployment的状态，判断上线是否hang住了,以此作为发布是否成功的指标。
+
+8.清理不再需要的旧版本ReplicaSets
+
+**RC主要功能**
+
+确保Pod数量: 它会确保Kubernetes中有指定数量的Pod在运行，如果少于指定数量的Pod，RC就会创建新的，反之会删除多余的，保证Pod的副本数量不变
+确保Pod健康: 当Pod不健康，RC会杀死不健康的Pod，重新创建新的
+弹性伸缩: 在业务高峰或者低峰的时候，可以用RC来动态调整Pod数量来提供资源的利用率吧，当然也可以使用HPA来实现
+滚动升级: 滚动升级是一种平滑的升级方式，通过逐步替换的策略，保证整体系统的稳定性
+
+**Deployment主要功能** 
+
+Deployment主要职责和RC是一样的，保证Pod的数量和健康，二者大部分功能都是完全一致的，可以看成是一个升级版的RC控制器
+
+事件和状态查看: 可以查看deployment的升级详细进度和状态
+回滚: 当升级Pod的时候出现问题，可以使用回滚操作回滚到之前的任一版本
+版本记录: 每一次对Deployment的擦破自拍，都可以保存下来，这也是保证可以回滚到任一版本的基础
+暂停和启动: 对于每一次升级都能够随时暂停和启动
+
+
 
 ### 集群联邦
 
@@ -1526,9 +1572,14 @@ tunl0报文封装格式
 
 #### 存在问题
 
+Calico模式要求底层网络必须能够支持BGP，另外就是跨网段问题，也即接入Calico网络的物理机必须在同一个网段下面，中间不能再跨路由器，否则中间的路由器如果不配合将Calico的BGP网络信息进行转发，则网络就会割裂。
+
+但是往往中间的路由器不在Kubernetes和Calico的控制之下，一种折中的办法是物理机A和物理机B之间打一个隧道，这个隧道有两个端点，在端点上进行封装，将容器的IP作为乘客协议放在隧道里面，而物理主机的IP放在外面作为承载协议。这样不管外层的IP通过传统的物理网络，走多少跳到达目标物理机，从隧道两端看起来，物理机A的下一跳就是物理机B，这样前面的逻辑才能成立。这就是Calico的IPIP模式。由此可见，Calico的IPIP模式也是Overlay的，也是存在性能损耗的。
+
+
 (1) 缺点租户隔离问题
 
-Calico 的三层方案是直接在 host 上进行路由寻址，那么对于多租户如果使用同一个 CIDR 网络就面临着地址冲突的问题。
+Calico 的三层方案是直接在 host 上进行路由寻址，那么对于多租户如果使用同一个 CIDR 网络就面临着地址冲突的问题（解法VRF）。
 
 (2) 路由规模问题
 
@@ -1762,6 +1813,152 @@ Reconcile 将 SidercarSet 取出之后，根据 Selector 选择匹配的 Pod，�
 
 # Openstack
 
+## 大规模部署优化之一：并发业务优化
+
+OpenStack在架构设计上是松耦合[解耦](https://so.csdn.net/so/search?q=解耦&spm=1001.2101.3001.7020)架构，天生支持横向扩展；但真正在大规模部署过程中，仍有好多因素决定其部署规模。本文从业务并发方面总结分享原生OpenStack支撑大规模(千节点量级)部署的优化思路；
+在大规模[并发](https://so.csdn.net/so/search?q=并发&spm=1001.2101.3001.7020)业务过程中，主要是去除红绿灯（数据库行级锁）解决锁抢占问题，以及修多条高速公路(调整各组件进程数)最终提升各组件的处理能力
+
+1、调整haproxy进程数，提升Loadbalance能力
+问题描述：
+在openstack部署过程中，通常采用haproxy作为前端负载均衡器，在大规模并发过程中，需要观察haproxy的CPU使用率，如果到达了100%，则需要进行优化 
+解决思路：
+调整haproxy的进程数，支撑大规模并发，参数如下
+global
+nbproc 16 #进程个数 
+
+2、调整OpenStack各组件进程数，提升组件处理能力
+问题描述:
+在大规模业务并发过程中，各组件处理能力不足（可以观察进程对应cpu使用率，如果已经到100%，说明处理能力不足） 
+解决思路:
+可以通过横向扩展组件或调整组件worker数来解决
+
+3、数据库、MQ分库处理，提升性能
+问题描述：
+大规模并发过程中，业务处理会对数据库和MQ，造成比较大的压力，导致业务下发失败 
+解决思路：
+对MQ和数据库进行分库处理，不同服务采用不同的库进行优化
+
+4、优化数据库连接数，减少数据库连接总数
+问题描述：
+并发业务处理，需要连接数据库，并发度高的时候，提示数据库连接超过了上限 
+解决思路：
+调整各组件的数据库连接数配置，取决于max_pool_size（连接池大小）和max_overflow（最大允许超出的连接数）
+
+[database]
+\# Maximum number of SQL connections to keep open in a pool. (integer value) 
+max_pool_size=10
+
+\# If set, use this value for max_overflow with SQLAlchemy. (integer value) 
+max_overflow=10
+
+5、采用缓存调度器驱动，提升虚拟机调度时间
+问题描述：并发调度过程中，调度前都会去数据库读取主机信息，耗时长导致调度时间长 
+解决思路：采用缓存调度器，缓存主机信息，提升调度时间
+\#caching_scheduler which aggressively（有闯进地） caches the system state for better 
+scheduler_driver=caching_scheduler
+
+6、基于存储内部快速复制能力，缩短镜像创建卷的时间
+问题描述:
+单个虚拟机创建耗时长的点主要集中在镜像创建卷，在创建过程中，需要下载镜像，所以创建时间跟镜像大小以及网络带宽强相关 
+解决思路:
+可以基于存储内部快速复制卷的能力，解决系统卷创建慢的问题，有以下三种方式 
+方式1：在cinder上对镜像卷进行缓存，openstack社区提供了缓存镜像卷的能力，核心思想，第一次创建卷的时候，在存储后端缓存对应的镜像卷，后续创建都是基于这个镜像卷复制一个新的卷。
+方式2：glance后端对接cinder，镜像直接以卷的形式存在cinder上，这种方式，在镜像上传的过程中，直接以卷的形式存放，在从镜像创建的卷的过程中，直接走卷复制卷的能力。
+这种方式可以解决首次发放慢的问题
+方式3：基于存储的差分卷能力实现卷的快速创建，这一功能需要实现cinder volume中的clone_image方法，在这个方法里面，可以先缓存镜像快照，然后基于快照创建差分卷
+
+7、采用rootwrap daemon方式运行命令，缩短nova/neutron等组件调用系统命令的时间
+问题描述:
+rootwrap 主要用来做权限控制。在openstack中，非root用户想执行需要root权限相关的命令时，用rootwrap来控制。 
+启动虚拟机过程中，会多次调用系统命令；调用命令时，会经过rootwrap命令进行封装，这个命令在每次允许过程中，都会加载命令白名单（允许nova组件执行命令的列表配置文件），
+最终再调用实际命令运行，额外耗时100ms左右。 
+解决思路:
+通过rootwrap daemon机制来解决，启动一个rootwrap daemon专门接受执行命令的请求，节省每次加载白名单的时间 nova-compute对应的rootwrap配置项：
+
+[DEFAULT]
+use_rootwrap_daemon=True
+
+8、Qutoa无锁化优化，减少操作Quota时的耗时
+问题描述：
+openstack在Quota处理过程中，采用了数据库行级锁来解决并发更新问题，但在并发场景下，这个锁会导致耗时增加 
+解决思路：
+由于在处理Quota过程中，先select再update，所以需要加锁（悲观锁）。针对这一点，可以通过带有where的update操作来实现更新，然后根据更新行数，判断是否更新成功（乐观锁）
+
+9、调整nova-compute并发创建任务上限，提升组件的并发能力
+问题描述：
+nova-compute在并发创建虚拟机过程中，有并发任务限制（M版本默认值为10） 
+解决思路：
+增大并发任务个数上限，对应参数为max_concurrent_builds
+
+10、keystone采用PKI机制替换UUID方式，减少keystone压力
+问题描述：
+openstack api server在处理请求前会校验token是否合法，如果采用UUID token，则每次都会去keystone做校验 
+解决思路：
+采用PKI方式，各api在本地通过证书来校验token是否合法
+
+11、适当增大各组件token失效列表的缓存时间，可以减少keystone的压力
+问题描述：
+openstack api server在处理请求前会校验token是否合法，除了校验token是否过期，同时还校验token是否在token失效列表里面；
+这个token失效列表会在本地缓存，如果过期，则会去keystone重新获取，在并发的时候，keystone会成为瓶颈点 
+解决思路：
+适当增大各组件token失效列表的缓存时间
+revocation_cache_time
+
+## 大规模部署优化之二：稳态优化
+
+本文从稳态方面总结分享原生OpenStack支撑大规模(千节点量级)部署的优化思路 
+OpenStack随着计算节点规模增大，计算节点上的各服务的agent个数会随之增加，比如nova-compute、neutron-agent、ceilometer-agent等。
+在稳态下，由于agent存在周期性任务，随着这些agent的增加，主要是周期任务会对系统造成压力，优化点如下:
+
+1、调整MQ连接数，降低MQ压力
+问题描述：
+OpenStack各服务内部通信都是通过RPC来交互，各agent都需要去连接MQ；
+随着各服务agent增多，MQ的连接数会随之增多，最终可能会到达上限，成为瓶颈 
+解决思路1：
+调整各Agent的RPC连接池大小；连接池默认大小为30，假如有1000个计算节点，nova-compute所需的MQ连接数上限总数就是3W，
+所以在真正部署过程中，需要对此值进行权衡优化；对应参数如下：
+
+解决思路2：
+提升MQ连接数上限；MQ的连接数取决于ulimit文件描述符的限制，一般缺省值为1024，对于MQ服务器来说此值偏小，
+所以需要重新设置linux系统中文件描述符的最大值，设置方法具体如下：
+（1）通过rabbitmqctl命令，查看rabbitmq当前支持的最大连接数
+
+（2）通过ulimit查看当前系统中文件描述符的最大值
+
+（3）调整最大值 
+方式1：在rabbitmq启动脚本中增加ulimit -n 10240，修改rabbitmq进程的文件描述符最大值 
+方式2：修改/etc/security/limits.conf文件中的如下配置
+user soft nofile 10240
+user hard nofile 10240
+方式3：修改/etc/sysctl.conf文件，增加如下配置项
+fs.file-max=10240
+
+2、优化周期任务，减少MQ压力
+问题描述：
+稳态下各agent存在一些周期任务周期性调用RPC，随着agent增多，RPC的次数会增多，MQ压力会增大 
+解决思路1：
+优化周期性任务，对周期性任务的周期进行审视，在允许的情况下，可适当增大周期，减少MQ压力；
+比如心跳上报周期，nova-compute默认10s上报一次心跳；nova对服务判断是否存活的时间，默认60s（取决于service_down_time）;
+在大规模场景下，可以调整report_interval为20s；在1000节点规模下，nova-compute心跳优化前为100次/s，优化后50次/s；对应参数如下
+
+解决思路2：对MQ进行分库处理，不同服务采用不同的MQ
+
+3、优化周期任务，减少数据库压力
+问题描述：
+稳态下各agent存在一些周期性任务周期调用数据库操作，nova-compute数据库操作是通过RPC到nova-conductor进行，
+随着计算节点增多，数据库以及nova-conductor压力会随之增大 
+解决思路1：
+优化周期任务周期，同上；当然上报心跳的周期也可以采用memcache存储后端，直接减少不必要的数据库调用，配置项如下
+
+解决思路2：
+调整nova-conductor对应的worker数目，支撑大规模场景
+
+
+
+## Ceph
+
+
+
 ## NFV
 
 网络功能虚拟化（NFV）提供了一种设计、部署和管理网络服务的全新方式，NFV将网络功能如网络地址转换（NAT）、防火墙、入侵检测、域名服务和缓存等功能从专有硬件中分离出来，并通过软件加以实现。NFV能够整合和交付完全虚拟化基础设施所需的网络组建，包括虚拟服务器、存储等。
@@ -1889,6 +2086,8 @@ OpenMANO是NFV-O（网络功能虚拟化编排器）的参考实现。它通过�
 ## knative
 
 # Cloud Native
+
+![img](D:\code\gitee\cs-notes\images\cloud\d5e48801f48107f92b19fa8dcfac4dd7.png)
 
 ## Istio
 
