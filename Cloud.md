@@ -8,7 +8,7 @@
 
 ## 容器底层技术
 
-### cfgroup：实现**资源限额**
+### cfgroup：实现资源限额
 
 通过cgroup设置进程使用CPU、内存和IO资源的限额。我们可以在`/sys/fs/cgroup/cpu/docker`下查看。
 
@@ -27,7 +27,7 @@ net_cls 子系统，可以标记 cgroup 中进程的网络数据包，然后可�
 其中对于CPU和内存的cgroup的限制可通过下面的图对应。
 ![img](D:\code\gitee\cs-notes\images\cloud\85858e0a6958ed68838c956b60da7996.png)
 
-### namespace：实现**资源隔离**
+### namespace：实现资源隔离
 
 mount namespace：让容器看上去拥有整个文件系统，容器有自己的/目录，可以执行mount和umount操作。
 UTS namespace：让容器拥有自己的hostname，默认情况下hostname是短id
@@ -64,7 +64,7 @@ containerd-shim 是 containerd 的一个组件，主要是用于剥离 container
 
 当我们有需求去替换 runc 运行时工具库时，例如替换为安全容器 kata container 或 Google 研发的 gViser，则需要增加对应的shim(kata-shim等)，以上两者均有自己实现的 shim。
 
-## **容器/Docker**
+## 容器/Docker
 
 ### 计算
 
@@ -1652,7 +1652,7 @@ Fastpath Mode:
 
 ### operator framework 实战
 
-#### **operator framework 概述**
+#### operator framework 概述
 
 在开始之前，首先介绍一下 operator framework。它实际上给用户提供了 webhook 和 controller 的框架，它的主要意义在于帮助开发者屏蔽了一些通用的底层细节，不需要开发者再去实现消息通知触发、失败重新入队等，只需关注被管理应用的运维逻辑实现即可。
 
@@ -1660,7 +1660,7 @@ Fastpath Mode:
 
 两者实际上并没有本质的区别，它们的核心都是使用官方的 controller-tools 和 controller-runtime。不过细节上稍有不同，比如 kubebuilder 有着更为完善的测试与部署以及代码生成的脚手架等；而 operator-sdk 对 ansible operator 这类上层操作的支持更好一些。
 
-#### **kuberbuildere 实战**
+#### kuberbuildere 实战
 
 这里的实战选用的是 kuberbuilder。案例选用的是阿里云对外开放的 kruise 项目下的 SidercarSet。
 
@@ -1952,6 +1952,522 @@ fs.file-max=10240
 
 解决思路2：
 调整nova-conductor对应的worker数目，支撑大规模场景
+
+## I/O设备虚拟化
+
+I/O虚拟化是计算机虚拟化最复杂的部分，因为涉及到CPU、操作系统、Hypervisor以及I/O设备的相互配合。I/O虚拟化也经历了从软件模拟虚拟化、类虚拟化向完全硬件虚拟化的转变。
+
+### a. I/O软件模拟虚拟化和类虚拟化
+
+I/O设备虚拟化场景，既要关注I/O设备模拟，也要关注vCPU和虚拟I/O设备的交互，许多条件交织在一起，使得整个问题变的非常复杂。I/O虚拟化性能代价主要体现在三个方面：驱动访问设备寄存器的代价；设备通过中断和DMA访问驱动的代价；设备模拟本身的代价。因此，I/O虚拟化性能优化主要是通过五个角度：
+
+- 减少I/O访问寄存器的代价：一方面是把部分I/O的访问变成MMIO访问，这样就不需要陷入Hypervisor；另一方面是优化VM-exit/VM-entry切换的代价。
+- 减少I/O访问的次数：比如简化通知机制，简化虚拟化设备功能等。
+- 优化中断：主要有如APIC的中断硬件虚拟化或者不需要中断的轮询驱动
+- 减少DMA访问的代价：通过IOMMU等实现Pass Through模式。
+- 减少设备模拟的代价：则主要是通过硬件SR-IOV机制实现硬件设备。
+
+如图1(a)，虚拟机中看到的设备，一般是由Hypervisor模拟出来的。虚拟设备的功能，可以少于也可以多于物理的设备，甚至可以模拟出一些不存在的特性，模拟出不存在的硬件设备。通过I/O软件模拟的方式，我们称之为I/O设备软件模拟虚拟化。在I/O软件模拟虚拟化的解决方案中，客户机VM要使用底层的硬件资源，需要Hypervisor来截获每一条请求指令，然后模拟出这些指令的行为。我们都知道Hypervisor截获指令的动作就是从VM-exit，处理完模拟然后再VM-entry的过程，这个过程的代价很高，每条指令都要如此，带来的性能开销必然是非常庞大的。
+
+如图1(b)所示，Virtio提供的类虚拟化方式，客户机完成设备的前端驱动程序，Hypervisor配合客户机完成相应的后端驱动程序，这样两者之间通过交互机制就可以实现高效的虚拟化过程。
+
+![aijishu_smartic1.png](D:\code\gitee\cs-notes\images\cloud\bVbaHb)
+图1 I/O设备虚拟化
+
+Virtio框架如图2所示，使用Virtqueue来实现其I/O机制，每个Virtqueue就是一个承载大量数据的Queue。VRing是Virtqueue的具体实现方式，针对VRing会有相应的描述符表格进行描述。Virtio是一个通用的驱动和设备接口框架，基于Virtio分别实现了Virtio-net、Virtio-blk、Virtio-scsi等很多不同类型的模拟设备及设备驱动。
+
+![aijishu_smartic2.png](D:\code\gitee\cs-notes\images\cloud\bVbaHc)
+图2 Virtio框架
+
+Virtio类虚拟化比传统的I/O设备软件模拟的性能优势体现在：很多控制和状态信息不需要通过寄存器读写操作来交互的，而是通过写入Virtqueue的相关数据结构来让驱动（Driver）和设备（Device）双方交互。并且在数据交互的时候，只需要在一定批量数据变化需要对方处理的时候才会通知对方，驱动通知设备是通过写Kick寄存器，设备通知驱动是通过中断。
+
+### b. I/O完全硬件虚拟化
+
+评价I/O虚拟化技术的两个指标——性能和通用性。性能，当然是越接近无虚拟化环境下的I/O性能最好；而通用性，则是I/O虚拟化对客户操作系统越透明越好。要想要高性能，最直接的方法就是让客户机直接使用真实的硬件设备；要想要通用性，则是要用想办法让客户机操作系统自带的驱动程序能够发现设备并操作设备。
+
+客户机直接操作设备面临两个问题：第一，如何让客户机直接访问到设备真实的I/O地址空间（包括I/O和MMIO）；第二，如何让设备的DMA直接访问客户机的内存空间。内存硬件虚拟化的EPT技术可以解决第一个问题。而VT-d技术则用来解决第二个问题。VT-d技术主要是引入地址重映射（IOMMU+IOTLB），负责提供重映射和设备直接分配。从设备端的DMA访问，都会进入地址重映射进行地址转换，使得设备可以访问到对应客户机特定的内存区域。
+
+VT-d技术虽然可以将物理的I/O设备直接透传给虚拟机，但是一台计算机系统受限于接口，可以连的物理设备毕竟有限。因此，PCIe SR-IOV技术应运而生。通过PCIe SR-IOV技术，一个物理I/O设备可以虚拟出多个虚拟设备，分配给虚拟机使用。
+
+如图1(c)所示，SR-IOV引入了两个PCIe的功能类型：
+
+- PFs（Physical Functions）：包括管理SR-IOV功能在内的所有PCIe设备。
+- VFs（Virtual Functions）：轻量级的PCIe设备，只能进行必要的配置和数据传输。
+
+Hypervisor把VF分配给虚拟机，通过IOMMU等硬件辅助技术提供的DMA数据映射，直接在虚拟机和硬件设备之间传输数据。
+
+### c. I/O虚拟化总结
+
+通过兼容性、性能、成本、扩展性四个方面对I/O虚拟化技术进行总结，详见表1：
+
+表1 不同I/O虚拟化方式对比
+
+![aijishu_io.png](D:\code\gitee\cs-notes\images\cloud\bVbaGn)
+
+
+
+## virtio
+
+Virtio旨在提供一套高效的、良好维护的通用的Linux驱动，实现虚拟机应用和不同Hypervisor实现的模拟设备之间标准化的接口。Virtio作为类虚拟化的I/O设备接口，广泛应用于云计算虚拟化场景，某种程度上，Virtio已经成为事实上的I/O设备的接口标准。有兴趣可以阅读想法提出者 Rusty Russell 的论文 [https://ozlabs.org/~rusty/virtio-spec/virtio-paper.pdf](https://links.jianshu.com/go?to=https%3A%2F%2Fozlabs.org%2F~rusty%2Fvirtio-spec%2Fvirtio-paper.pdf)
+
+在上一节介绍I/O虚拟化时，Virtio作为I/O类虚拟化技术做过介绍。本节会略去虚拟化相关的内容，把Virtio作为一个标准的接口进行详细的阐述。
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-00b50da175a3f83b.png)
+
+### 2.1 Virtio寄存器
+
+Virtio寄存器有三种类型：设备状态字、功能特征位以及PCIe配置空间。
+
+**a. 设备状态字**
+
+如表2所示，设备状态字（Device Status Field）标识了初始化序列步骤的完成情况。
+
+表2 设备状态字描述
+![aijshu_io2.png](D:\code\gitee\cs-notes\images\cloud\bVbaGy)
+
+基于设备状态字，Virtio协议定义并约束了驱动程序必须按照以下顺序初始化设备：
+
+- （1）重置设备。
+- （2）设置ACKNOWLEDGE状态位，表示OS已发现此设备。
+- （3）设置DRIVER状态位，表示OS知道如何驱动此设备。
+- （4）读取设备功能位，并将操作系统和驱动程序可以理解的功能位子集写入设备。
+- （5）设置FEATURES\_OK状态位。
+- （6）重新读取设备状态，如果FEATURES\_OK读取结果依然为1，则表示设备接受了驱动的功能位子集；否则，如果为0，则表示该设备不支持驱动的功能子集，该设备不可用。
+- （7）执行设备特定的设置，包括发现设备的虚拟队列、读取和可能写入设备的virtio配置空间以及填充虚拟队列等。
+- （8）将DRIVER\_OK状态位设置为1。此时，设备初始化完成，设备处于活动状态。
+- （9）如果上述这些步骤中的任何一个发生不可恢复的错误，驱动程序会将FAILED状态位设置为1。
+
+**b. 功能特征位**
+
+每个Virtio设备均提供其支持的所有功能对应的功能特征位。在设备初始化期间，驱动程序将读取此信息并告知设备它接受的子集。
+
+通过这种方式可以实现向前和向后兼容：如果设备增加了新功能位，则较旧的驱动程序就不会将该功能位写回到设备中（意味着此功能不会被开启）。同样，如果驱动程序增加了新的功能，而设备未提供此功能，则同样此功能不会被写回到设备（意味着此功能不会被开启）。
+
+Virtio1.1协议中的功能位分配如下：
+
+- 比特位0 – 23：特定设备类型的功能位；
+- 比特位24 – 37：保留用于扩展队列和功能协商机制的功能位；
+- 比特位38以上：保留功能位以供将来扩展。
+
+**c. 配置空间**
+
+Virtio over PCI使用的配置空间与标准的PCI配置空间相比，特殊的地方在于其Vendor ID和Device ID。Virtio的Vendor ID为0x1AF4，其Device ID编号从0x1040-0x107F。
+
+为了跟PCI Capabilities格式兼容，Virtio定义的virtio\_pci\_cap格式如表3所示。
+
+表3 Virtio的PCI capability结构
+
+![image.png](D:\code\gitee\cs-notes\images\cloud\bVbaGA)
+其中cfg\_type标识virtio\_pci\_cap类型，共有五种，代表了映射在BAR空间的五组寄存器。virtio\_pci\_cap类型如表4所示。
+
+表4 Virtio PCI capability类型
+![image.png](D:\code\gitee\cs-notes\images\cloud\bVbaGB)
+
+### 2.2 Virtqueue交互队列
+
+Virtio 1.1引入了Packed Virtqueue的概念，对应的Virtio 1.0的Virtqueue被称为Split Virtqueue。
+
+如图3所示，为Virtio1.0的Split Virtqueue结构。Virtqueue由三部分组成：
+
+- 描述符表
+- 可用的描述符环
+- 已使用的描述符环
+- Virtio 1.0的Split Virtqueue具有一些缺点：
+- 如果是虚拟化场景软件模拟Virtio设备的话，因为分散的数据结构，导致Cache利用率较低，每次请求都会有很多Cache不命中；
+- 如果是硬件实现的话，每次描述符需要多次设备DMA访问。
+
+![aijishu_smartic3.png](D:\code\gitee\cs-notes\images\cloud\bVbaHd)
+图3 Virtio 1.0中的Split Virtqueue
+
+如图4所示，Virtio 1.1引入了Packed Virtqueue的概念。整个描述符只有一个数据结构。这样，如果软件实现Virtio设备模拟的话，可以提升描述符交互的Cache命中率。如果硬件实现的，可以降低设备DMA的访问次数。
+
+![aijishu_smartic4.png](D:\code\gitee\cs-notes\images\cloud\bVbaHe)
+图4 Virtio1.1的Packed Virtqueue
+
+### 2.3 Virtio交互
+
+驱动和设备的交互，符合生产者消费者模型的数据及通知（Notification）的交互行为。驱动把共享队列的队列项准备好，通过写寄存器的方式通知设备。设备收到驱动发送的通知则处理队列项以及相应的数据搬运工作，结束后更新队列状态并通知（设备通知驱动是通过中断）驱动。驱动接收到中断通知时候，把已经使用的队列项释放，并更新队列状态。
+
+一个典型的通用的驱动和设备的交互流程如图5所示。Virtio场景的驱动和设备交互，驱动给设备的通知（Notification）称为Kick，设备给驱动的通知称为Interrupt（中断）。Kick和Interrupt操作是Virtio接口的一部分，在虚拟化场景，Kick和Interrupt需要非常大的CPU切换代价。驱动希望在Kick之前产生尽可能多的待处理缓冲项（一个缓冲项对应一个描述符和描述符指向的数据块）；同样的，设备希望处理尽可能多的缓冲项然后再发送一个中断。通过尽量处理更多的缓冲项的方式，来摊薄通知的代价。
+
+这种策略是一种理想状态，因为大多数时候驱动并不知道下一组缓冲项何时带来，因此不得不每一组缓冲项准备好之后就必须要Kick设备。同样的，设备在处理完相应的缓冲项之后，就尽快的发送中断给驱动，以达到尽可能小的延迟。
+
+![aijishu_smartic5.png](D:\code\gitee\cs-notes\images\cloud\bVbaHf)
+图5 Virtio驱动和设备交互示意图
+
+如图6所示，在设备模拟的虚拟化场景下，驱动可以暂时禁用中断，设备也可以暂时禁用Kick。通过这样的机制，可以最大限度的减少通知的代价，并且不影响性能和延迟。Virtio 1.1支持两种通知抑制机制，因此共有三种模式：
+
+- 使能通知模式：完全无抑制，使能通知；
+- 禁用通知模式：如图6所示，可以完全禁止对方发通知给自己；
+- 使能特定的描述符通知模式：告知对方一个特定的描述符，当对方顺序处理到此描述符处理完成时产生通知。
+
+![aijishu_smartic6.png](D:\code\gitee\cs-notes\images\cloud\bVbaHg)
+图6 通过前后端禁用抑制通知的Virtio驱动和设备交互
+
+### 2.4 总结
+
+如图7，Virtio基于分层的设计思想，定义了三层Virtio设备架构：
+
+- 最下层的总线接口。PCI是最常用的Virtio场景使用的总线，但Virtio协议不仅仅支持PCI，也支持MMIO和Channel IO等。
+- 通用的Virtio交互接口。包括Virtqueue、功能特征位、配置空间等。Virtio交互接口是Virtio最核心的功能，通过Virtio交互接口实现了不同类型设备的标准化。
+- 上层的特定设备接口。在Virtio协议里，定义网络、块、控制台、SCSI、GPU等各种不同类型的设备。
+
+![aijishu_smartic7.png](D:\code\gitee\cs-notes\images\cloud\bVbaHh)
+图7 分层的Virtio框架图
+
+Virtio的优点体现在：
+
+- Virtio实现了尽可能多的设计共享。这样，在开发的时候就可以复用很多软件和硬件资源，达到快速开发的目的。
+- Virtio实现了接口的标准化。标准化体现在两个方面：
+- (1)一个是通用的Virtio交互接口，统一了不同的设备类型软硬件交互；
+- (2)另一个是基于Virtio的Virtio-net、Virtio-block等广泛应用于云计算虚拟化场景，Virtio已经成为事实上的标准I/O接口。
+
+而Virtio的缺点，则同样因为Virtio实现了接口的标准化，而忽略了不同设备类型数据传输的特点。因此，在一些大数据量传输的场景，效率比较低下。如果是在类似HPC这样的性能和延迟非常敏感的场景，Virtio就不是一个很好的选择。
+
+## 虚拟化卸载
+
+虚拟化卸载指的是计算机虚拟化中消耗CPU资源较多的接口设备模拟、热迁移、虚拟化管理等任务的卸载。
+
+**a. 接口设备的卸载**
+
+前面我们介绍了网络、远程存储等IO工作任务的卸载，而虚拟化卸载主要指的是跟IO相关的接口设备的卸载，例如网络、存储等接口设备的卸载。IO接口设备的卸载本身上也是IO硬件虚拟化的过程，比如我们通过VT-d技术实现从VM中pass though访问硬件设备，某种程度上也可以认为是把运行在Hypervisor中的模拟设备 “卸载”到了硬件。因此，IO接口设备的卸载本质上和IO设备硬件虚拟化是一件事情。
+
+如图8，为了实现设备接口的标准化、加速IO处理的性能以及潜在的充分利用现有的虚拟化生态（例如更好的支持设备热迁移）等原因，阿里云在神龙芯片里实现了硬件的Virtio接口设备，通过Virtio接口设备支持Virtio-net网络驱动和Virtio-blk存储驱动等，实现了类虚拟化IO设备Virtio的硬件“卸载”。
+
+![aijishu_smartic8.png](D:\code\gitee\cs-notes\images\cloud\bVbaHk)
+图8 阿里云神龙芯片网络和存储接口示意图
+
+AWS的NITRO系统支持网络、本地存储和远程存储，NITRO实现了网络接口设备ENA/EFA（AWS自定义接口）的硬件“卸载”以及存储接口设备NVMe（远程存储EBS使用的是NVMe接口，本地存储也是NVMe接口）的卸载。
+
+**b. 接口设备卸载后的迁移问题**
+
+当把设备“卸载”到硬件，让VM直接访问硬件设备，这使得VM的设备热迁移变的非常有挑战。vDPA（vhost Data Path Acceleration，vhost数据路径加速，其中vhost是Virtio后端设备模拟的轮询方式实现）实现了一种折中的解决方案，如图9所示，vDPA把Virtio分为了控制面和数据面：
+
+- 控制面。vDPA控制面依然是通过要经过Hypervisor的处理，用于设备和VM之间的配置更改和功能协商，用于建立和终止数据面。
+- 数据面。vDPA数据面包括共享队列以及相应的通知机制，用于在设备和VM之间传输实际的数据。
+
+![aijishu_smartic9.png](D:\code\gitee\cs-notes\images\cloud\bVbaHi)
+图9 vDPA框架示意图
+
+使用vDPA一个重要原因是，在热迁移的时候可以很方便的把Virtio数据面的处理切换回传统的Virtio/Vhost后端设备模拟。这样，可以充分利用现有的基于KVM/Qemu对Virtio设备迁移的解决方案来完成设备的迁移。
+
+**c. 虚拟化管理的卸载**
+
+从软件虚拟化进化到硬件虚拟化的过程，本身就可以看作是一个硬件加速以及硬件卸载的过程。我们逐步的剥离了Hypervisor的功能，比如通过VT-x技术“卸载”了Hypervisor的CPU/内存等的软件模拟，以及通过VT-d以及vDPA等技术“卸载”了设备软件模拟。这些剥离，使得Hypervisor越来越轻量，整个系统的虚拟化开销也越来越少。进一步的，我们可以把虚拟化的管理（例如Linux平台主流的管理程序Libvirt）卸载到硬件中的嵌入式软件运行。
+
+如图10， 我们通过桥接的方式，实现主机软件和硬件中嵌入式软件通信机制。把虚拟化管理等软件任务从主机卸载到嵌入式系统（依然有很小一部分任务无法卸载，如虚拟机资源分配、vCPU调度等）。这样，可以把几乎100%的主机资源提供给用户，使用户虚拟机得到近乎物理机的性能。
+
+![aijishu_smartic8.png](D:\code\gitee\cs-notes\images\cloud\bVbaHk)
+图10 虚拟化管理卸载图
+
+通过虚拟化管理卸载到硬件中的嵌入式CPU软件，我们可以做到物理上的业务和管理分离，整个业务主机跟云计算管理网络安全的隔离，只能通过特定的接口访问到Lite Hypervisor，除此之外，不能访问主机的任何资源。这样，即使有潜在的运维操作失误，也无法对业务主机造成影响。
+
+## DPDK
+
+### UIO
+
+DPDK的官方文档[http://doc.dpdk.org/guides/linux_gsg/linux_drivers.html#UIO](https://links.jianshu.com/go?to=http%3A%2F%2Fdoc.dpdk.org%2Fguides%2Flinux_gsg%2Flinux_drivers.html%23UIO)说的比较清楚，摘录如下：
+
+A small kernel module to set up the device, map device memory to user-space and register interrupts. In many cases, the standard uio_pci_generic module included in the Linux kernel can provide the uio capability.
+
+For some devices which lack support for legacy interrupts, e.g. virtual function (VF) devices, the igb_uio module may be needed in place of uio_pci_generic.
+
+包括两部分：
+
+**UIO Driver**
+
+\- The device tree node for the device can use whatever you want in the compatible property as it only has to match what is used in the kernel space driver as with any platform device driver
+
+**UIO Platform Device Driver**
+
+\- The device tree node for the device needs to use "generic - uio" in it's compatible property
+
+基本框架如下：
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-49b20a9b25fe1c86.png)
+
+UIO框架
+
+**用户态驱动工作流程:**
+
+\1. 在启动用户态驱动前装载内核态UIO设备驱动；
+
+\2. 启动用户态应用，开启对应UIO设备（/dev/uioX)，从用户空间看，UIO设备向其他设备一样是文件系统中的一个设备节点；
+
+\3. 通过UIO大小（如/sys/class/uio/uio0/maps/map0/size）在相应的sysfs文件目录下找到设备内存地址信息；
+
+\4. 通过调用UIO驱动的mmap()函数将设备内存映射到进程地址空间；
+
+\5. 应用访问设备硬件来控制设备；
+
+\6. 通过调用mynmap()来移除设备内存的映射；
+
+\7. 关闭UIO设备文件；
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-6c51fc33858a00a7.png)
+
+
+
+### VFIO
+
+向用户态开放了IOMMU接口，通过IOCTL配置IOMMU将DMA地址空间映射并将其限制在进程虚拟地址空间。可参考：
+
+1）[https://www.kernel.org/doc/Documentation/vfio.txt](https://links.jianshu.com/go?to=https%3A%2F%2Fwww.kernel.org%2Fdoc%2FDocumentation%2Fvfio.txt) 
+
+2）[https://www.ibm.com/developerworks/community/blogs/5144904d-5d75-45ed-9d2b-cf1754ee936a/entry/vfio?lang=en_us](https://links.jianshu.com/go?to=https%3A%2F%2Fwww.ibm.com%2Fdeveloperworks%2Fcommunity%2Fblogs%2F5144904d-5d75-45ed-9d2b-cf1754ee936a%2Fentry%2Fvfio%3Flang%3Den_us)
+
+需要BIOS和内核的支持，并配置使能IO virtualization（Intel® VT-d）
+
+### IOMMU:
+
+参考[https://nanxiao.me/iommu-introduction/](https://links.jianshu.com/go?to=https%3A%2F%2Fnanxiao.me%2Fiommu-introduction%2F)，IOMMU提供了IO设备访问实际物理内存的一套机制。在虚拟化领域，内部实现了guest虚机内存地址和host内存地址的转换。
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-53b045673d51c0b0.png)
+
+typical physical view
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-eefcde1fe10f41bb.png)
+
+compare to MMU
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-78aef169feef2882.png)
+
+summary from AMD
+
+## PCI BAR （base address register）：
+
+参见简单说就是PCI配置机制，包括寄存器配置帧头，设备编号（B/D/F）及对应的软硬件实现，最终实现PCI设备的寻址。
+
+摘录于[https://en.wikipedia.org/wiki/PCI_configuration_space](https://links.jianshu.com/go?to=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FPCI_configuration_space)的一段话，简要说明了BDF的划分和寻址。
+
+One of the major improvements the [PCI Local Bus](https://links.jianshu.com/go?to=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FPCI_Local_Bus) had over other I/O architectures was its configuration mechanism. In addition to the normal memory-mapped and I/O port spaces, each device function on the bus has a *configuration space*, which is 256 bytes long, addressable by knowing the eight-bit PCI [bus](https://links.jianshu.com/go?to=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FComputer_bus), five-bit device, and three-bit function numbers for the device (commonly referred to as the *BDF* or *B/D/F*, as abbreviated from *bus/device/function*). This allows up to 256 buses, each with up to 32 devices, each supporting eight functions. A single PCI expansion card can respond as a device and must implement at least function number zero. The first 64 bytes of configuration space are standardized; the remainder are available for vendor-defined purposes.
+
+以下是SPDK自带的脚本工具显示的系统信息，目前SPDK支持的驱动包括NVMe，I/OAT（Intel的I/O加速技术）和virtio（半虚拟化的设备抽象接口规范，其规定的实现接口有PCI，MMIO和Channel I/O方式）
+
+NVMe devices
+
+BDF       Numa Node    Driver name       Device name
+
+I/OAT DMA
+
+BDF       Numa Node    Driver Name
+
+0000:00:04.0  0        vfio-pci
+
+0000:80:04.0  1        vfio-pci
+
+...
+
+virtio
+
+BDF       Numa Node    Driver Name       Device Name
+
+## MMIO（memory-mapped I/O）
+
+MMIO和PMIO（port-mapped I/O）作为互补的解决方案实现了CPU和外围设备的IO互通。IO和内存使用相同的地址空间，即CPU指令中的地址既可以指向内存，也可以指向特定的IO设备。每个IO设备监控CPU的地址总线并对CPU对该地址的访问进行回应，同时连接数据总线至指定设备的硬件寄存器，使得CPU指令可以像访问内存一样访问IO设备，类比于DMA的memory-to-device，MMIO是一种cpu-to-device的技术。
+
+参考[https://en.wikipedia.org/wiki/Memory-mapped_I/O](https://links.jianshu.com/go?to=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMemory-mapped_I%2FO)
+
+## NVMe（non-volatile memory express）
+
+优化的高性能可扩展的主机控制器接口，利用基于PCIE的SSD来实现企业和客户系统的需要。参见[www.nvmexpress.org](https://links.jianshu.com/go?to=https%3A%2F%2Fwww.nvmexpress.org)
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-374ce8122fc17f2e.png)
+
+支持64K队列及每队列64K命令
+
+官方推荐的一个线程模型，即CPU：thread：NVMe queue=1：1：1
+
+threading model for an application using SPDK is to spawn a fixed number of threads in a pool and dedicate a single NVMe queue pair to each thread. A further improvement would be to pin each thread to a separate CPU core, and often the SPDK documentation will use "CPU core" and "thread" interchangeably because we have this threading model in mind.
+
+### SPDK基本框架
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-1379b0d44531cec3.webp)
+
+#### 存储协议层：
+
+iSCSI target: Implementation of the established specification for block traffic over Ethernet; about twice as efficient as kernel LIO. Current version uses the kernel TCP/IP stack by default.
+
+NVMe-oF target: Implements the [new NVMe-oF specification](https://links.jianshu.com/go?to=http%3A%2F%2Fwww.nvmexpress.org%2Fspecifications%2F). Though it depends on RDMA hardware, the NVMe-oF target can serve up to 40 Gbps of traffic per CPU core.
+
+vhost-scsi target （在上图未体现出来，当前版本18.04已发布）: A feature for KVM/QEMU that utilizes the SPDK NVMe driver, giving guest VMs lower latency access to the storage media and reducing the overall CPU load for I/O intensive workloads.
+
+#### 存储服务层： 
+
+Block device abstraction layer (bdev): This generic block device abstraction is the glue that connects the storage protocols to the various device drivers and block devices. Also provides flexible APIs for additional customer functionality (RAID, compression, dedup, and so on) in the block layer.
+
+Blobstore: Implements a highly streamlined file-like semantic (non-POSIX*) for SPDK. This can provide high-performance underpinnings for databases, containers, virtual machines (VMs), or other workloads that do not depend on much of a POSIX file system’s feature set, such as user access control.
+
+#### 硬件驱动层：
+
+NVMe driver: The foundational component for SPDK, this highly optimized, lockless driver provides unparalleled scalability, efficiency, and performance.
+
+Intel® QuickData Technology: Also known as Intel® I/O Acceleration Technology (Intel® IOAT), this is a copy offload engine built into the Intel® Xeon® processor-based platform. By providing user space access, the threshold for DMA data movement is reduced, allowing greater utilization for small-size I/Os or NTB.
+
+#### 安装编译（参考[https://github.com/spdk/spdk](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fspdk%2Fspdk)）
+
+## virtio网络
+
+作为一个开放的标准接口，virtio一直在云计算与虚拟化中扮演着重要的角色。而virtio网络接口，作为virtio标准支持下最复杂的接口之一，在虚拟机/容器网络加速、混合云加速中一直扮演着重要角色。本文将在读者对virtio标准与虚拟化有一定了解的前提下，介绍virtio网络架构从创造之初到如今的演化之路。
+
+### 1.virtio-net驱动与设备:最原始的virtio网络
+
+Virtio网络设备是一种虚拟的以太网卡，支持多队列的网络包收发。熟悉virtio的读者应该知道，在virtio的架构中有前后端之分。在virtio 网络中，所谓的前端即是虚拟机中的virtio-net网卡驱动。而后端的实现多种多样，后端的变化往往标志着virtio网络的演化。图一中的后端即是QEMU的实现版本，也是最原始的virtio-net后端（设备）。virtio标准将其对于队列的抽象称为Virtqueue。Vring即是对Virtqueue的具体实现。一个Virtqueue由一个Available Ring和Used Ring组成。前者用于前端向后端发送数据，而后者反之。而在virtio网络中的TX/RX Queue均由一个Virtqueue实现。所有的I/O通信架构都有数据平面与控制平面之分。
+
+而对于virtio来说，通过PCI传输协议实现的virtio控制平面正是为了确保Vring能够用于前后端正常通信，并且配置好自定义的设备特性。而数据平面正是使用这些通过共享内存实现的Vring来实现虚拟机与主机之间的通信。举例来说，当virtio-net驱动发送网络数据包时，会将数据放置于Available Ring中之后，会触发一次通知（Notification）。这时QEMU会接管控制，将此网络包传递到TAP设备。接着QEMU将数据放于Used Ring中，并发出一次通知，这次通知会触发虚拟中断的注入。虚拟机收到这个中断后，就会到Used Ring中取得后端已经放置的数据。至此一次发送操作就完成了。接收网络数据包的行为也是类似，只不过这次virtio-net驱动是将空的buffer放置于队列之中，以便后端将收到的数据填充完成而已。
+
+[![img](D:\code\gitee\cs-notes\images\cloud\virtionet001.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/001.png)
+
+图 1 virtio驱动与设备
+
+
+
+### 2.vhost-net：处于内核态的后端
+
+QEMU实现的virtio网络后端带来的网络性能并不如意，究其原因是因为频繁的上下文切换，低效的数据拷贝、线程间同步等。于是，内核实现了一个新的virtio网络后端驱动，名为vhost-net。
+
+与之而来的是一套新的vhost协议。vhost协议可以将允许VMM将virtio的数据面offload到另一个组件上，而这个组件正是vhost-net。在这套实现中，QEMU和vhost-net内核驱动使用ioctl来交换vhost消息，并且用eventfd来实现前后端的通知。当vhost-net内核驱动加载后，它会暴露一个字符设备在/dev/vhost-net。而QEMU会打开并初始化这个字符设备，并调用ioctl来与vhost-net进行控制面通信，其内容包含virtio的特性协商，将虚拟机内存映射传递给vhost-net等。对比最原始的virtio网络实现，控制平面在原有的基础上转变为vhost协议定义的ioctl操作（对于前端而言仍是通过PCI传输层协议暴露的接口），基于共享内存实现的Vring转变为virtio-net与vhost-net共享，数据平面的另一方转变为vhost-net，并且前后端通知方式也转为基于eventfd的实现。
+
+如图2所示，可以注意到，vhost-net仍然通过读写TAP设备来与外界进行数据包交换。而读到这里的读者不禁要问，那虚拟机是如何与本机上的其他虚拟机与外界的主机通信的呢？答案就是通过类似Open vSwitch (OVS)之类的软件交换机实现的。OVS相关的介绍这里就不再赘述。
+
+[![img](D:\code\gitee\cs-notes\images\cloud\virtionet002.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/002.jpg)
+
+图 2 Vhost-net为后端的virtio网络架构
+
+
+
+### 3.vhost-user:使用DPDK加速的后端
+
+DPDK社区一直致力于加速数据中心的网络数据平面，而virtio网络作为当今云环境下数据平面必不可少的一环，自然是DPDK优化的方向。而vhost-user就是结合DPDK的各方面优化技术得到的用户态virtio网络后端。这些优化技术包括：处理器亲和性，巨页的使用，轮询模式驱动等。除了vhost-user，DPDK还有自己的virtio PMD作为高性能的前端，本文将以vhost-user作为重点介绍。
+
+基于vhost协议，DPDK设计了一套新的用户态协议，名为vhost-user协议，这套协议允许qemu将virtio设备的网络包处理offload到任何DPDK应用中（例如OVS-DPDK）。vhost-user协议和vhost协议最大的区别其实就是通信信道的区别。Vhost协议通过对vhost-net字符设备进行ioctl实现，而vhost-user协议则通过unix socket进行实现。通过这个unix socket，vhost-user协议允许QEMU通过以下重要的操作来配置数据平面的offload：
+
+\1. 特性协商：virtio的特性与vhost-user新定义的特性都可以通过类似的方式协商，而所谓协商的具体实现就是QEMU接收vhost-user的特性，与自己支持的特性取交集。
+\2. 内存区域配置：QEMU配置好内存映射区域，vhost-user使用mmap接口来映射它们。
+\3. Vring配置：QEMU将Virtqueue的个数与地址发送给vhost-user，以便vhost-user访问。
+\4. 通知配置：vhost-user仍然使用eventfd来实现前后端通知。
+
+基于DPDK的Open vSwitch(OVS-DPDK)一直以来就对vhost-user提供了支持，读者可以通过在OVS-DPDK上创建vhost-user端口来使用这种高效的用户态后端。
+
+[![img](D:\code\gitee\cs-notes\images\cloud\virtionet003.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/003.png)
+
+图 3 DPDK vhost-user架构
+
+
+
+### 4.vDPA:使用硬件加速数据面
+
+Virtio作为一种半虚拟化的解决方案，其性能一直不如设备的pass-through，即将物理设备（通常是网卡的VF）直接分配给虚拟机，其优点在于数据平面是在虚拟机与硬件之间直通的，几乎不需要主机的干预。而virtio的发展，虽然带来了性能的提升，可终究无法达到pass-through的I/O性能，始终需要主机（主要是软件交换机）的干预。
+
+vDPA(vhost Data Path Acceleration)即是让virtio数据平面不需主机干预的解决方案。从图中可以看到virtio的控制平面仍需要vDPA driver进行传递，也就是说QEMU，或者虚拟机仍然使用原先的控制平面协议作为接口，而这些控制信息被传递到硬件中，硬件会通过这些信息配置好数据平面。而数据平面上，经过配置后的数据平面可以在虚拟机和网卡之间直通。鉴于现在后端的数据处理其实完全在硬件中，原先的前后端通知方式也可以几乎完全规避主机的干预，以中断为例，原先中断必须由主机处理，主机通过软件交换机得知中断的目的地之后，将虚拟中断注入到虚拟机中，而在vDPA中，网卡可以直接将中断发送到虚拟机中。总体来看，vDPA的数据平面与SR-IOV设备直通的数据平面非常接近，并且在性能数据上也能达到后者的水准。更重要的是vDPA框架保有virtio这套标准的接口，使云服务提供商在不改变virtio接口的前提下，得到更高的性能。
+
+需要注意的是，vDPA框架中利用到的硬件必须至少支持virtio ring的标准，否则可想而知，硬件是无法与前端进行正确通信的。另外，原先软件交换机提供的交换功能，也转而在硬件中实现。
+
+[![img](D:\code\gitee\cs-notes\images\cloud\virtionet004.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/004.jpg)
+
+图 4 vDPA架构
+
+
+
+### 5.总结
+
+纵观virtio网络的发展，控制平面由最原始的virtio到vhost-net协议，再到vhost-user协议，逐步得到了完善与扩充。而数据平面上，从原先集成在QEMU中或内核模块的中，到集成了DPDK数据平面优化技术的vhost-user，最终到使用硬件加速数据平面。在保留virtio这种标准接口的前提下，达到了SR-IOV设备直通的网络性能。
+
+## virtio存储
+
+### Vhost-SCSI
+
+### Vhost-Blk
+
+### Vhost-Nvme
+
+### VHost
+
+### VHOST-USER
+
+### SPDK VHost-User
+
+**使用SPDK原因**
+固态硬盘SSD正在迅速扩展它在数据中心中的份额，相较于传统存储介质，相较于传统机械硬盘性能耗电等优势明显。随着更新的闪存介质投入市场(如3D NAND)，这些优势还在不断扩大。
+
+这些新的设备目前大都基于NVMe：NVMe准确的说是目前最新的存储设备通信协议。现在一块基于NVMe的SSD硬盘的性能比一个企业级磁盘阵列还要好。
+
+用户在集成新一代的NVMe设备，会碰到很大的挑战。因为NVMe硬盘的吞吐量和时延表现太好了就IOPS而言，比传统SAS或SATA温氏磁盘快上千倍，也比之前的SATA SSD快5~10倍。一般存储软件的表现，相对于NVMe来说，在整个IO事务中消耗的时间百分比就显得太多了。
+
+nvme（硬件）已经快到一定程度了，尤其是软件已经赶不上他了，此时软件反而成为了系统IO的瓶颈。换句话说，存储软件栈的性能和效率在整个存储系统中越来越重要。
+
+**SPDK关键技术**
+相对于传统IO方式，SPDK运用了以下关键技术实现其高性能方案。
+
+1.用户态（空间）
+定义：什么是用户空间：Kernel space 是 Linux 内核的运行空间，User space 是用户程序的运行空间。为了安全系统稳定性，它们是隔离的，即使用户的程序崩溃了，内核也不受影响。
+Kernel space 可以执行任意命令，调用系统的一切资源；User space 只能执行简单的运算，不能直接调用系统资源，必须通过系统接口（又称 system call），才能向内核发出指令也叫系统调用。
+
+SPDK运行在用户态的实现
+第一：驱动是一个直接连接并控制计算机硬件的软件。
+第二：操作系统将根据权限级别将系统虚拟内存分为两类：用户空间和内核空间。
+通常情况，驱动运行在内核空间，我们应用程序访问磁盘，读取网卡的数据，新建一个线程都需要通过系统调用接口，完成从用户态到内存态的切换。
+但是SPDK包含的驱动运行在用户空间，但是这些驱动仍旧直接和硬件设备相连。也就是直接绕过内核空间。
+
+SPDK为了控制硬件设备，他先指示操作系统放弃对该硬件的控制，这样就不会走内核空间了。比如在Linux上解除NvMe设备的绑定，则对应的/dev/nvme1就会消失。然后通过驱动直接控制硬件设备这样更快。
+
+SPDK选择用户态的好处
+传统IO是在用户态和内核态频繁切换，这会造成大量开销。而我们的设备驱动代码运行在用户态意味着，在定义上驱动代码不会运行在内核中。减少系统调用，避免内核上下文切换和中断的处理开销，从而节省了大量的CPU负担。允许更多的时间被用来做实际的数据存储。
+
+2. 轮询模式
+采用轮询模式改变了传统I/O的基本模型。
+
+传统方式IO方式
+一般来说读写数据的运作方式是这样的：
+OS kernel请求一组数据，硬盘回应“嗯，没问题”，但是磁盘IO较慢，所以需要一点时间来准备数据，准备好了就会告诉OS kernel准备好了。假设现在已经准备好了，就会给CPU发送一个中断信号，通知OS说我的数据准备好了，可以来取数据了。这就是中断的方式。
+
+有IO需要处理时就请求一个中断，CPU先去处理其他事务，等收到中断后才进行资源调度来处理IO。
+
+但是注意中断是有开销的，需要切换资源。
+
+轮询工作
+当磁盘速度远慢于CPU时，CPU中断处理资源充沛，中断机制是能对这些IO任务应对自如的。
+
+但是当硬盘设备速度很快，马上就可以把数据准备好，也就是磁盘IO几乎不需要等待了，再使用中断，本来硬盘IO数据立刻都准备好了，而CPU切换到其他地方执行去了，然后再中断回来取数据，这就会造成没必要的开销并且对性能造成影响。
+
+在低速设备中，中断开销只占整个I/O时间的一个很小的百分比。然而，在固态设备的时代，持续引入更低延迟的持久化设备，中断开销成为了整个I/O时间中不能被忽视的部分。继续使用中断的方式会大大浪费硬盘性能。
+
+所以解决方案：对于超高速设备（比如这里的nvme磁盘，基于RAM的缓存盘）以一种叫做“轮询”的模式运作。
+
+所以我们采用轮询的工作方式：我们提交完io 请求之后，就一直通过轮询的方式来判断io 请求是否完成。SPDK架构中也是通过这样的方式，而不是依靠中断，在高速设备上用于取代中断的访问方式。这样会一直占用CPU，但是由于硬盘IO很快，这样带来的好处是降低总延迟和延迟抖动。通俗的来讲spdk运行时会占用满指定的CPU core，其本质就是一个大的while死循环，占满一个cpu core。去连续的跑用户指定的poller，轮询队列。
+
+注意：是中断驱动处理还是轮询驱动处理，取决于系统硬件的搭配方式，不同的条件会匹配不同的优化策略。我们使用轮询是因为使用高速存储设备存储IO速度极快。
+
+3. 线程无锁
+spdk设计的主要目标之一就随着使用硬件（e.g. SSD，NIC，CPU）的增多而获得性能的线性提升，为了达到这目的，spdk的设计者就必须消除使用更多的系统资源带来的过载，如：更多的线程、进程间通信，访问更多的存储硬件、网卡带来的性能损耗。
+
+spdk引入了无锁队列，使用lock-free编程，从而避免锁带来的性能损耗。
+
+spdk的无锁队列主要依赖的dpdk的实现，其本质是使用CAS（compare and swap）实现了多生产者多消费者FIFO队列。
+
+SPDK运行在用户空间：比如和应用绑定，因为线程是应用本身自己创建的这些线程，这样创建的线程就可以很方便被维护（比如数量）。SPDK驱动会将硬件队列直接暴露给应用（因为驱动在用户空间），应用被要求每次只能从一个线程访问一个硬件队列。这保证了：每个线程提交请求的时候不需要和其他线程协调（比如通过锁协调）因为每个线程控制一个硬件队列，这样避免了冲突。实现无锁。
+
+4. 异步
+SDPK提供的了大量的异步接口
+spdk_bs_init(bs_dev, NULL, bs_init_complete, hello_context);
+使用异步好处：是不会阻塞当前程序的执行，并且在操作完成之后调用回调函数。
+通过轮询实现
+
+
+
+### SPDK Virtio
+
+![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cm9BZU0wVVp5alYwUzVPTFlPaWI3YU5jVVBUR21CNmdWb1lOZmMwNjhGMlFVWENYS0dKSFZIQ3cvNjQwP3d4X2ZtdD1qcGVn.png)
+
+**SPDK virtio 用户模式**
+
+![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cjViaWF4NnZ2N2oyYlYwTEN3ZEtMYjlpYjM2amxSNGhKblgzS0ZDVWN3bVQ5ZGZQRGVMcWhqMTJBLzY0MD93eF9mbXQ9anBlZw.png)
+
+**virtio PCI模式**
+![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFiblVzU1RGUzZ0V3diaG9vMGJWaWFJVHI4ZXNtR2ZjdDE0azU4Q2ljRDNoMmhHRlZpY1JqWE1DOUxpYXloWTZXaWJBWVQxb1JiRlR0aWJhTmhpYkEvNjQwP3d4X2ZtdD1qcGVn.png)
+
+
+![img](D:\code\gitee\cs-notes\images\cloud\13192585-5fd4d3a8e5398600.webp)
 
 
 
