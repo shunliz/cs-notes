@@ -795,7 +795,7 @@ GC Roots 大体可以分为三大类：
 
 最终结果：A/D/E/F/G 可达
 
-![img](D:\code\gitee\cs-notes\images\JAVA\0c3431769fb541d687e67f6f2ae1c52b.png)
+![img](images/JAVA/0c3431769fb541d687e67f6f2ae1c52b.png)
 
 我们把遍历对象图过程中遇到的对象，按“是否访问过”这个条件标记成以下三种颜色：
 
@@ -803,7 +803,7 @@ GC Roots 大体可以分为三大类：
 黑色：本对象已经被GC访问过，且本对象的子引用对象也已经被访问过了（本对象的孩子节点也都被访问过）。
 灰色：本对象已访问过，但是本对象的子引用对象还没有被访问过，全部访问完会变成黑色，属于中间态（本对象的孩子节点还没有访问）。
 
-![img](D:\code\gitee\cs-notes\images\JAVA\c74315b9bdc543bb876e62cca8dcefcf.gif)
+![img](images/JAVA/c74315b9bdc543bb876e62cca8dcefcf.gif)
 
 
 标记过程：
