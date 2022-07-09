@@ -2046,7 +2046,7 @@ Virtio旨在提供一套高效的、良好维护的通用的Linux驱动，实现
 
 在上一节介绍I/O虚拟化时，Virtio作为I/O类虚拟化技术做过介绍。本节会略去虚拟化相关的内容，把Virtio作为一个标准的接口进行详细的阐述。
 
-![img](images\cloud\13192585-00b50da175a3f83b.png)
+![img](images/cloud/13192585-00b50da175a3f83b.png)
 
 ### 2.1 Virtio寄存器
 
