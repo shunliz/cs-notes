@@ -25,7 +25,7 @@ blkio 子系统，可以限制进程的块设备IO。
 net_cls 子系统，可以标记 cgroup 中进程的网络数据包，然后可以使用 TC模块（Traffic Control）对数据包进行控制。
 
 其中对于CPU和内存的cgroup的限制可通过下面的图对应。
-![img](D:\code\gitee\cs-notes\images\cloud\85858e0a6958ed68838c956b60da7996.png)
+![img](images/cloud/85858e0a6958ed68838c956b60da7996.png)
 
 ### namespace：实现资源隔离
 
@@ -1979,12 +1979,12 @@ I/O设备虚拟化场景，既要关注I/O设备模拟，也要关注vCPU和虚�
 
 如图1(b)所示，Virtio提供的类虚拟化方式，客户机完成设备的前端驱动程序，Hypervisor配合客户机完成相应的后端驱动程序，这样两者之间通过交互机制就可以实现高效的虚拟化过程。
 
-![aijishu_smartic1.png](D:\code\gitee\cs-notes\images\cloud\bVbaHb)
+![aijishu_smartic1.png](images/cloud/bVbaHb)
 图1 I/O设备虚拟化
 
 Virtio框架如图2所示，使用Virtqueue来实现其I/O机制，每个Virtqueue就是一个承载大量数据的Queue。VRing是Virtqueue的具体实现方式，针对VRing会有相应的描述符表格进行描述。Virtio是一个通用的驱动和设备接口框架，基于Virtio分别实现了Virtio-net、Virtio-blk、Virtio-scsi等很多不同类型的模拟设备及设备驱动。
 
-![aijishu_smartic2.png](D:\code\gitee\cs-notes\images\cloud\bVbaHc)
+![aijishu_smartic2.png](images/cloud/bVbaHc)
 图2 Virtio框架
 
 Virtio类虚拟化比传统的I/O设备软件模拟的性能优势体现在：很多控制和状态信息不需要通过寄存器读写操作来交互的，而是通过写入Virtqueue的相关数据结构来让驱动（Driver）和设备（Device）双方交互。并且在数据交互的时候，只需要在一定批量数据变化需要对方处理的时候才会通知对方，驱动通知设备是通过写Kick寄存器，设备通知驱动是通过中断。
@@ -2010,13 +2010,13 @@ Hypervisor把VF分配给虚拟机，通过IOMMU等硬件辅助技术提供的DMA
 
 表1 不同I/O虚拟化方式对比
 
-![aijishu_io.png](D:\code\gitee\cs-notes\images\cloud\bVbaGn)
+![aijishu_io.png](images/cloud/bVbaGn)
 
 
 
 ## Qemu-kvm
 
-![img](D:\code\gitee\cs-notes\images\cloud\20210910010314367.png)
+![img](images/cloud/20210910010314367.png)
 
 **qemu虚拟网卡收发报文流程**
 
@@ -2057,7 +2057,7 @@ Virtio寄存器有三种类型：设备状态字、功能特征位以及PCIe配�
 如表2所示，设备状态字（Device Status Field）标识了初始化序列步骤的完成情况。
 
 表2 设备状态字描述
-![aijshu_io2.png](images\cloud\bVbaGy)
+![aijshu_io2.png](images/cloud/bVbaGy)
 
 基于设备状态字，Virtio协议定义并约束了驱动程序必须按照以下顺序初始化设备：
 
@@ -2091,11 +2091,11 @@ Virtio over PCI使用的配置空间与标准的PCI配置空间相比，特殊�
 
 表3 Virtio的PCI capability结构
 
-![image.png](D:\code\gitee\cs-notes\images\cloud\bVbaGA)
+![image.png](images/cloud/bVbaGA)
 其中cfg\_type标识virtio\_pci\_cap类型，共有五种，代表了映射在BAR空间的五组寄存器。virtio\_pci\_cap类型如表4所示。
 
 表4 Virtio PCI capability类型
-![image.png](D:\code\gitee\cs-notes\images\cloud\bVbaGB)
+![image.png](images/cloud/bVbaGB)
 
 ### 2.2 Virtqueue交互队列
 
@@ -2110,12 +2110,12 @@ Virtio 1.1引入了Packed Virtqueue的概念，对应的Virtio 1.0的Virtqueue�
 - 如果是虚拟化场景软件模拟Virtio设备的话，因为分散的数据结构，导致Cache利用率较低，每次请求都会有很多Cache不命中；
 - 如果是硬件实现的话，每次描述符需要多次设备DMA访问。
 
-![aijishu_smartic3.png](D:\code\gitee\cs-notes\images\cloud\bVbaHd)
+![aijishu_smartic3.png](images/cloud/bVbaHd)
 图3 Virtio 1.0中的Split Virtqueue
 
 如图4所示，Virtio 1.1引入了Packed Virtqueue的概念。整个描述符只有一个数据结构。这样，如果软件实现Virtio设备模拟的话，可以提升描述符交互的Cache命中率。如果硬件实现的，可以降低设备DMA的访问次数。
 
-![aijishu_smartic4.png](D:\code\gitee\cs-notes\images\cloud\bVbaHe)
+![aijishu_smartic4.png](images/cloud/bVbaHe)
 图4 Virtio1.1的Packed Virtqueue
 
 ### 2.3 Virtio交互
@@ -2126,7 +2126,7 @@ Virtio 1.1引入了Packed Virtqueue的概念，对应的Virtio 1.0的Virtqueue�
 
 这种策略是一种理想状态，因为大多数时候驱动并不知道下一组缓冲项何时带来，因此不得不每一组缓冲项准备好之后就必须要Kick设备。同样的，设备在处理完相应的缓冲项之后，就尽快的发送中断给驱动，以达到尽可能小的延迟。
 
-![aijishu_smartic5.png](D:\code\gitee\cs-notes\images\cloud\bVbaHf)
+![aijishu_smartic5.png](images/cloud/bVbaHf)
 图5 Virtio驱动和设备交互示意图
 
 如图6所示，在设备模拟的虚拟化场景下，驱动可以暂时禁用中断，设备也可以暂时禁用Kick。通过这样的机制，可以最大限度的减少通知的代价，并且不影响性能和延迟。Virtio 1.1支持两种通知抑制机制，因此共有三种模式：
@@ -2135,7 +2135,7 @@ Virtio 1.1引入了Packed Virtqueue的概念，对应的Virtio 1.0的Virtqueue�
 - 禁用通知模式：如图6所示，可以完全禁止对方发通知给自己；
 - 使能特定的描述符通知模式：告知对方一个特定的描述符，当对方顺序处理到此描述符处理完成时产生通知。
 
-![aijishu_smartic6.png](D:\code\gitee\cs-notes\images\cloud\bVbaHg)
+![aijishu_smartic6.png](images/cloud/bVbaHg)
 图6 通过前后端禁用抑制通知的Virtio驱动和设备交互
 
 ### 2.4 总结
@@ -2146,7 +2146,7 @@ Virtio 1.1引入了Packed Virtqueue的概念，对应的Virtio 1.0的Virtqueue�
 - 通用的Virtio交互接口。包括Virtqueue、功能特征位、配置空间等。Virtio交互接口是Virtio最核心的功能，通过Virtio交互接口实现了不同类型设备的标准化。
 - 上层的特定设备接口。在Virtio协议里，定义网络、块、控制台、SCSI、GPU等各种不同类型的设备。
 
-![aijishu_smartic7.png](D:\code\gitee\cs-notes\images\cloud\bVbaHh)
+![aijishu_smartic7.png](images/cloud/bVbaHh)
 图7 分层的Virtio框架图
 
 Virtio的优点体现在：
@@ -2168,7 +2168,7 @@ Virtio的优点体现在：
 
 如图8，为了实现设备接口的标准化、加速IO处理的性能以及潜在的充分利用现有的虚拟化生态（例如更好的支持设备热迁移）等原因，阿里云在神龙芯片里实现了硬件的Virtio接口设备，通过Virtio接口设备支持Virtio-net网络驱动和Virtio-blk存储驱动等，实现了类虚拟化IO设备Virtio的硬件“卸载”。
 
-![aijishu_smartic8.png](D:\code\gitee\cs-notes\images\cloud\bVbaHk)
+![aijishu_smartic8.png](images/cloud/bVbaHk)
 图8 阿里云神龙芯片网络和存储接口示意图
 
 AWS的NITRO系统支持网络、本地存储和远程存储，NITRO实现了网络接口设备ENA/EFA（AWS自定义接口）的硬件“卸载”以及存储接口设备NVMe（远程存储EBS使用的是NVMe接口，本地存储也是NVMe接口）的卸载。
@@ -2180,7 +2180,7 @@ AWS的NITRO系统支持网络、本地存储和远程存储，NITRO实现了网�
 - 控制面。vDPA控制面依然是通过要经过Hypervisor的处理，用于设备和VM之间的配置更改和功能协商，用于建立和终止数据面。
 - 数据面。vDPA数据面包括共享队列以及相应的通知机制，用于在设备和VM之间传输实际的数据。
 
-![aijishu_smartic9.png](D:\code\gitee\cs-notes\images\cloud\bVbaHi)
+![aijishu_smartic9.png](images/cloud/bVbaHi)
 图9 vDPA框架示意图
 
 使用vDPA一个重要原因是，在热迁移的时候可以很方便的把Virtio数据面的处理切换回传统的Virtio/Vhost后端设备模拟。这样，可以充分利用现有的基于KVM/Qemu对Virtio设备迁移的解决方案来完成设备的迁移。
@@ -2191,7 +2191,7 @@ AWS的NITRO系统支持网络、本地存储和远程存储，NITRO实现了网�
 
 如图10， 我们通过桥接的方式，实现主机软件和硬件中嵌入式软件通信机制。把虚拟化管理等软件任务从主机卸载到嵌入式系统（依然有很小一部分任务无法卸载，如虚拟机资源分配、vCPU调度等）。这样，可以把几乎100%的主机资源提供给用户，使用户虚拟机得到近乎物理机的性能。
 
-![aijishu_smartic8.png](D:\code\gitee\cs-notes\images\cloud\bVbaHk)
+![aijishu_smartic8.png](images/cloud/bVbaHk)
 图10 虚拟化管理卸载图
 
 通过虚拟化管理卸载到硬件中的嵌入式CPU软件，我们可以做到物理上的业务和管理分离，整个业务主机跟云计算管理网络安全的隔离，只能通过特定的接口访问到Lite Hypervisor，除此之外，不能访问主机的任何资源。这样，即使有潜在的运维操作失误，也无法对业务主机造成影响。
@@ -2218,7 +2218,7 @@ For some devices which lack support for legacy interrupts, e.g. virtual function
 
 基本框架如下：
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-49b20a9b25fe1c86.png)
+![img](images/cloud/13192585-49b20a9b25fe1c86.png)
 
 UIO框架
 
@@ -2238,7 +2238,7 @@ UIO框架
 
 \7. 关闭UIO设备文件；
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-6c51fc33858a00a7.png)
+![img](images/cloud/13192585-6c51fc33858a00a7.png)
 
 
 
@@ -2256,15 +2256,15 @@ UIO框架
 
 参考[https://nanxiao.me/iommu-introduction/](https://links.jianshu.com/go?to=https%3A%2F%2Fnanxiao.me%2Fiommu-introduction%2F)，IOMMU提供了IO设备访问实际物理内存的一套机制。在虚拟化领域，内部实现了guest虚机内存地址和host内存地址的转换。
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-53b045673d51c0b0.png)
+![img](images/cloud/13192585-53b045673d51c0b0.png)
 
 typical physical view
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-eefcde1fe10f41bb.png)
+![img](images/cloud/13192585-eefcde1fe10f41bb.png)
 
 compare to MMU
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-78aef169feef2882.png)
+![img](images/cloud/13192585-78aef169feef2882.png)
 
 summary from AMD
 
@@ -2306,7 +2306,7 @@ MMIO和PMIO（port-mapped I/O）作为互补的解决方案实现了CPU和外围
 
 优化的高性能可扩展的主机控制器接口，利用基于PCIE的SSD来实现企业和客户系统的需要。参见[www.nvmexpress.org](https://links.jianshu.com/go?to=https%3A%2F%2Fwww.nvmexpress.org)
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-374ce8122fc17f2e.png)
+![img](images/cloud/13192585-374ce8122fc17f2e.png)
 
 支持64K队列及每队列64K命令
 
@@ -2316,7 +2316,7 @@ threading model for an application using SPDK is to spawn a fixed number of thre
 
 ### SPDK基本框架
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-1379b0d44531cec3.webp)
+![img](images/cloud/13192585-1379b0d44531cec3.webp)
 
 #### 存储协议层：
 
@@ -2350,7 +2350,7 @@ Virtio网络设备是一种虚拟的以太网卡，支持多队列的网络包�
 
 而对于virtio来说，通过PCI传输协议实现的virtio控制平面正是为了确保Vring能够用于前后端正常通信，并且配置好自定义的设备特性。而数据平面正是使用这些通过共享内存实现的Vring来实现虚拟机与主机之间的通信。举例来说，当virtio-net驱动发送网络数据包时，会将数据放置于Available Ring中之后，会触发一次通知（Notification）。这时QEMU会接管控制，将此网络包传递到TAP设备。接着QEMU将数据放于Used Ring中，并发出一次通知，这次通知会触发虚拟中断的注入。虚拟机收到这个中断后，就会到Used Ring中取得后端已经放置的数据。至此一次发送操作就完成了。接收网络数据包的行为也是类似，只不过这次virtio-net驱动是将空的buffer放置于队列之中，以便后端将收到的数据填充完成而已。
 
-[![img](D:\code\gitee\cs-notes\images\cloud\virtionet001.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/001.png)
+[![img](images/cloud/virtionet001.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/001.png)
 
 图 1 virtio驱动与设备
 
@@ -2364,7 +2364,7 @@ QEMU实现的virtio网络后端带来的网络性能并不如意，究其原因�
 
 如图2所示，可以注意到，vhost-net仍然通过读写TAP设备来与外界进行数据包交换。而读到这里的读者不禁要问，那虚拟机是如何与本机上的其他虚拟机与外界的主机通信的呢？答案就是通过类似Open vSwitch (OVS)之类的软件交换机实现的。OVS相关的介绍这里就不再赘述。
 
-[![img](D:\code\gitee\cs-notes\images\cloud\virtionet002.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/002.jpg)
+[![img](images/cloud/virtionet002.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/002.jpg)
 
 图 2 Vhost-net为后端的virtio网络架构
 
@@ -2383,7 +2383,7 @@ DPDK社区一直致力于加速数据中心的网络数据平面，而virtio网�
 
 基于DPDK的Open vSwitch(OVS-DPDK)一直以来就对vhost-user提供了支持，读者可以通过在OVS-DPDK上创建vhost-user端口来使用这种高效的用户态后端。
 
-[![img](D:\code\gitee\cs-notes\images\cloud\virtionet003.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/003.png)
+[![img](images/cloud/virtionet003.png)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/003.png)
 
 图 3 DPDK vhost-user架构
 
@@ -2397,7 +2397,7 @@ vDPA(vhost Data Path Acceleration)即是让virtio数据平面不需主机干预�
 
 需要注意的是，vDPA框架中利用到的硬件必须至少支持virtio ring的标准，否则可想而知，硬件是无法与前端进行正确通信的。另外，原先软件交换机提供的交换功能，也转而在硬件中实现。
 
-[![img](D:\code\gitee\cs-notes\images\cloud\virtionet004.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/004.jpg)
+[![img](images/cloud/virtionet004.jpg)](https://img1.sdnlab.com/wp-content/uploads/2020/09/27/004.jpg)
 
 图 4 vDPA架构
 
@@ -2405,7 +2405,7 @@ vDPA(vhost Data Path Acceleration)即是让virtio数据平面不需主机干预�
 
 vduse是字节跳动向linux内核社区开源的用户态vDPA设备实现框架，将出现在linux 5.15内核中。
 
-![img](D:\code\gitee\cs-notes\images\cloud\4b2ce2800a72407a973cf0da92ea1368.PNG)
+![img](images/cloud/4b2ce2800a72407a973cf0da92ea1368.PNG)
 
 ### 5.总结
 
@@ -2433,11 +2433,11 @@ vhost-scsi和vhost-blk由于性能不理想，没有被何如社区版本。
 
 ### Vhost-Blk
 
-![img](D:\code\gitee\cs-notes\images\cloud\sadfsadfasdfaf1.jpg)
+![img](images/cloud/sadfsadfasdfaf1.jpg)
 
 ### Vhost-Nvme
 
-![640?wx_fmt=jpeg](D:\code\gitee\cs-notes\images\cloud\c980803a2cee20c02964c9918f7d66c2.png)
+![640?wx_fmt=jpeg](images/cloud/c980803a2cee20c02964c9918f7d66c2.png)
 
 ### VHOST-USER
 
@@ -2513,17 +2513,17 @@ spdk_bs_init(bs_dev, NULL, bs_init_complete, hello_context);
 
 ### SPDK Virtio
 
-![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cm9BZU0wVVp5alYwUzVPTFlPaWI3YU5jVVBUR21CNmdWb1lOZmMwNjhGMlFVWENYS0dKSFZIQ3cvNjQwP3d4X2ZtdD1qcGVn.png)
+![img](images/cloud/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cm9BZU0wVVp5alYwUzVPTFlPaWI3YU5jVVBUR21CNmdWb1lOZmMwNjhGMlFVWENYS0dKSFZIQ3cvNjQwP3d4X2ZtdD1qcGVn.png)
 
 **SPDK virtio 用户模式**
 
-![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cjViaWF4NnZ2N2oyYlYwTEN3ZEtMYjlpYjM2amxSNGhKblgzS0ZDVWN3bVQ5ZGZQRGVMcWhqMTJBLzY0MD93eF9mbXQ9anBlZw.png)
+![img](images/cloud/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFibHVIQ1diTjhvNUhRM1lmZUVGdXc3cjViaWF4NnZ2N2oyYlYwTEN3ZEtMYjlpYjM2amxSNGhKblgzS0ZDVWN3bVQ5ZGZQRGVMcWhqMTJBLzY0MD93eF9mbXQ9anBlZw.png)
 
 **virtio PCI模式**
-![img](D:\code\gitee\cs-notes\images\cloud\aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFiblVzU1RGUzZ0V3diaG9vMGJWaWFJVHI4ZXNtR2ZjdDE0azU4Q2ljRDNoMmhHRlZpY1JqWE1DOUxpYXloWTZXaWJBWVQxb1JiRlR0aWJhTmhpYkEvNjQwP3d4X2ZtdD1qcGVn.png)
+![img](images/cloud/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X2pwZy80YW1RTlJFVGFiblVzU1RGUzZ0V3diaG9vMGJWaWFJVHI4ZXNtR2ZjdDE0azU4Q2ljRDNoMmhHRlZpY1JqWE1DOUxpYXloWTZXaWJBWVQxb1JiRlR0aWJhTmhpYkEvNjQwP3d4X2ZtdD1qcGVn.png)
 
 
-![img](D:\code\gitee\cs-notes\images\cloud\13192585-5fd4d3a8e5398600.webp)
+![img](images/cloud/13192585-5fd4d3a8e5398600.webp)
 
 ## virtio PCI
 
@@ -2539,7 +2539,7 @@ spdk_bs_init(bs_dev, NULL, bs_init_complete, hello_context);
 
 SR-IOV是让PCIE设备扩展支持硬件虚拟化的规范，具体规范可见https://composter.com.ua/documents/sr-iov1_1_20Jan10_cb.pdf
 
-![img](D:\code\gitee\cs-notes\images\cloud\a78df509684d48e1af80d656590012d9.jpg)
+![img](images/cloud/a78df509684d48e1af80d656590012d9.jpg)
 
 在虚拟机中使用网卡VF也产生了一个问题，就是虚拟机必须使用VF对应的驱动，这就导致虚拟机在不同物理机间的迁移受到了限制。如果两台物理机使用了不同厂商型号的网卡，由于VF驱动不同，热迁移是不可能实现的，冷迁移也要求guest系统有很好的设备自适应和配置能力。此外，如果网卡的固件和功能升级，guest中的VF驱动版本可能也需要升级，这对虚拟机的部署运维来说也是个很麻烦的问题。
 
@@ -2582,9 +2582,9 @@ Ceph项目最早起源于Sage就读博士期间的工作（最早的成果于200
 
 - File：Posix接口，支持快照。
 
-  ![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\d56e3cf71942081f66888222e5480fac.png)
+  ![640?wx_fmt=png](images/cloud/d56e3cf71942081f66888222e5480fac.png)
 
-![img](D:\code\gitee\cs-notes\images\cloud\20190122153059631.png)
+![img](images/cloud/20190122153059631.png)
 
 **RADOS：**Reliable Autonomic Distributed Object Store（可靠的，自主的，分布式的对象存储）。在 ceph 中这个名词经常出现，有时会以 R 表示 RADOS。实际上这个词仅仅是对 ceph 的一个修饰词，并不代表 ceph 的组件什么的。粗暴的认为， RADOS = ceph 对象存储集群 即可。
 **LIBRADOS:**Librados是Rados提供库，主要提供API接口，因为RADOS是协议很难直接访问，因此上层的RBD、RGW和CephFS都是通过librados访问的，目前提供PHP、Ruby、Java、Python、C和C++支持。
@@ -2607,11 +2607,11 @@ Ceph项目最早起源于Sage就读博士期间的工作（最早的成果于200
 
 **常用的commandline为"ceph",对应的options如下表:**
 
-![img](D:\code\gitee\cs-notes\images\cloud\907596-20180209155137482-1888041102.png)
+![img](images/cloud/907596-20180209155137482-1888041102.png)
 
 **对应的commands如下表:**
 
-![img](D:\code\gitee\cs-notes\images\cloud\907596-20180209155219545-1473481343.png)
+![img](images/cloud/907596-20180209155219545-1473481343.png)
 
 能指定的daemons(守护进程)类型包括mon,osd及mds。
 
@@ -4419,7 +4419,7 @@ ceph的整体读写性能下降，经查看ceph osd perf有一块osd延迟较大
 
 ### Ceph IO算法流程
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\5a1ef0021b0a07bbfba9791f5b3ea61f.png)
+![640?wx_fmt=png](images/cloud/5a1ef0021b0a07bbfba9791f5b3ea61f.png)
 
 1. File用户需要读写的文件。File->Object映射：
 
@@ -4438,9 +4438,9 @@ a. CRUSH(pgid)->(osd1,osd2,osd3) 。
 
 ### Ceph RBD IO流程
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\a5a099a169c5a95e732448a018de6838.png)
+![640?wx_fmt=png](images/cloud/a5a099a169c5a95e732448a018de6838.png)
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\b92c9bc394a9624c9a049ffe9af381e5.png)
+![640?wx_fmt=png](images/cloud/b92c9bc394a9624c9a049ffe9af381e5.png)
 
 \1. 客户端创建一个pool，需要为这个pool指定pg的数量。
 
@@ -4458,7 +4458,7 @@ a. CRUSH(pgid)->(osd1,osd2,osd3) 。
 
 ## Ceph Pool和PG分布情况
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\4eb74b68e8218c7669656a0110b6f220.png)
+![640?wx_fmt=png](images/cloud/4eb74b68e8218c7669656a0110b6f220.png)
 
 说明：
 
@@ -4485,7 +4485,7 @@ a. CRUSH(pgid)->(osd1,osd2,osd3) 。
 - 容忍网络抖动：网络偶尔延迟。
 - 扩散机制：节点存活状态改变导致的元信息变化需要通过某种机制扩散到整个集群。
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\bf0ec7d446bcc62460828279266c2990.png)
+![640?wx_fmt=png](images/cloud/bf0ec7d446bcc62460828279266c2990.png)
 
 OSD节点会监听public、cluster、front和back四个端口
 
@@ -4497,7 +4497,7 @@ OSD节点会监听public、cluster、front和back四个端口
 
 ### Ceph OSD之间相互心跳检测
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\6fe5fb6079685cb78c3183d96b2e6683.png)
+![640?wx_fmt=png](images/cloud/6fe5fb6079685cb78c3183d96b2e6683.png)
 
 步骤：
 
@@ -4507,7 +4507,7 @@ OSD节点会监听public、cluster、front和back四个端口
 
 ### Ceph OSD与Mon心跳检测
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\1df9f7a3ac8fd4c1f4753d0a82e5dc12.png)
+![640?wx_fmt=png](images/cloud/1df9f7a3ac8fd4c1f4753d0a82e5dc12.png)
 
 OSD报告给Monitor：
 
@@ -4568,7 +4568,7 @@ CRUSH算法因子：
 - Placement Rules
   决定了一个PG的对象副本如何选择的规则，通过这些可以自己设定规则，用户可以自定义设置副本在集群中的分布。
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\894a02c0f717c1e036add53d94cea2f6.png)
+![640?wx_fmt=png](images/cloud/894a02c0f717c1e036add53d94cea2f6.png)
 
 CRUSH Map是一个树形结构，OSDMap更多记录的是OSDMap的属性(epoch/fsid/pool信息以及osd的ip等等)。
 
@@ -4596,7 +4596,7 @@ rule replicated_ruleset  #规则集的命名，创建pool时可以指定rule集
 
 #### Bucket随机算法类型
 
-![640?wx_fmt=png](D:\code\gitee\cs-notes\images\cloud\fd325a003fd404fc876ad650096c4a0b.png)
+![640?wx_fmt=png](images/cloud/fd325a003fd404fc876ad650096c4a0b.png)
 
 - 一般的buckets：适合所有子节点权重相同，而且很少添加删除item。
 
@@ -4860,7 +4860,7 @@ OpenMANO是NFV-O（网络功能虚拟化编排器）的参考实现。它通过�
 
 # Cloud Native
 
-![img](D:\code\gitee\cs-notes\images\cloud\d5e48801f48107f92b19fa8dcfac4dd7.png)
+![img](images/cloud/d5e48801f48107f92b19fa8dcfac4dd7.png)
 
 ## Istio
 

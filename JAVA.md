@@ -2879,15 +2879,15 @@ Object 类中的 notify() 方法，唤醒在此对象监视器上等待的单个
 
 1. 正常情况下，主线程启动了子线程，主线程、子线程各自执行，彼此不受影响。
 
-   ![img](D:\code\gitee\cs-notes\images\JAVA\20180719180515448.png)
+   ![img](images/JAVA/20180719180515448.png)
 
 2. 需求是主线程执行结束，由主线程启动的子线程都结束
 
-   ![img](D:\code\gitee\cs-notes\images\JAVA\809946650.jpeg)
+   ![img](images/JAVA/809946650.jpeg)
 
 3. 需求是子线程执行结束，主线程等待启动的子线程都结束之后再结束
 
-   ![img](D:\code\gitee\cs-notes\images\JAVA\1606039593.JPEG)
+   ![img](images/JAVA/1606039593.JPEG)
 
 ## 线程死锁
 

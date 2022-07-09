@@ -1204,11 +1204,11 @@ MVCC 的目的就是多版本并发控制，在数据库中的实现，就是为
 
 **三个隐藏字段**
 
-![img](D:\code\gitee\cs-notes\images\Database\3e69dd845f137cd94621fe846c49bc20.jpeg)DB_ROW_ID 是数据库默认为该行记录生成的唯一隐式主键，DB_TRX_ID 是当前操作该记录的事务 ID ,而 DB_ROLL_PTR 是一个回滚指针，用于配合 undo日志，指向上一个旧版本
+![img](images/Database/3e69dd845f137cd94621fe846c49bc20.jpeg)DB_ROW_ID 是数据库默认为该行记录生成的唯一隐式主键，DB_TRX_ID 是当前操作该记录的事务 ID ,而 DB_ROLL_PTR 是一个回滚指针，用于配合 undo日志，指向上一个旧版本
 举例如：
-![img](D:\code\gitee\cs-notes\images\Database\1675509d9c00d0292868db2eca1ee47b.jpeg)
-![img](D:\code\gitee\cs-notes\images\Database\77b637ad1628ab9b599e1111bb1b0578.jpeg)
-![img](D:\code\gitee\cs-notes\images\Database\dc9c85cac9293c3ec9c3d53348215364.jpeg)
+![img](images/Database/1675509d9c00d0292868db2eca1ee47b.jpeg)
+![img](images/Database/77b637ad1628ab9b599e1111bb1b0578.jpeg)
+![img](images/Database/dc9c85cac9293c3ec9c3d53348215364.jpeg)
 
 从上面，我们就可以看出，不同事务或者相同事务的对同一记录的修改，会导致该记录的undo log成为一条记录版本线性表，既链表，undo log 的链首就是最新的旧记录，链尾就是最早的旧记录.
 undolog：回滚日志，保存了事务发生之前的数据的一个版本，作用：
@@ -1233,21 +1233,21 @@ Read View遵循一个可见性算法，主要是将要被修改的数据的最�
 
 
 
-![img](D:\code\gitee\cs-notes\images\Database\094f5a65166af3483e3005689f785331.jpeg)
+![img](images/Database/094f5a65166af3483e3005689f785331.jpeg)
 举例说明：
-![img](D:\code\gitee\cs-notes\images\Database\bdaf0bcbb31973e544f889726f63e6d4.jpeg)在这
+![img](images/Database/bdaf0bcbb31973e544f889726f63e6d4.jpeg)在这
 分析：
-![img](D:\code\gitee\cs-notes\images\Database\8f2c8e29fd228a83e231fdafb8e7b417.jpeg)
+![img](images/Database/8f2c8e29fd228a83e231fdafb8e7b417.jpeg)
 
 第二种情况：
 
-![img](D:\code\gitee\cs-notes\images\Database\d5f7bd19b846aac83db8009ffb95c5c5.jpeg)
+![img](images/Database/d5f7bd19b846aac83db8009ffb95c5c5.jpeg)
 分析：
-![img](D:\code\gitee\cs-notes\images\Database\2e594481db65199b90e961d78f100a12.jpeg)
+![img](images/Database/2e594481db65199b90e961d78f100a12.jpeg)
 
 最后完成的绘图：
 
-![img](D:\code\gitee\cs-notes\images\Database\b91634bb7e35dad25bdc2d44169190c3.jpeg)
+![img](images/Database/b91634bb7e35dad25bdc2d44169190c3.jpeg)
 
 **MVCC应用场景**
 
@@ -1932,12 +1932,12 @@ InnoDB存储引擎在创建表的过程中就会根据主键自动构造一棵B+
 ![Innodb-非聚集索引](images/Database/Innodb-非聚集索引.png)
 
 
-![图片](D:\code\gitee\cs-notes\images\Database\261011d237bec993821aa198b97ae8ce.png)
+![图片](images/Database/261011d237bec993821aa198b97ae8ce.png)
 
 
 
 聚集索引数据存储的是数据
-![图片](D:\code\gitee\cs-notes\images\Database\7c635d682bd3cdc421bb9eea33a5a413.png)
+![图片](images/Database/7c635d682bd3cdc421bb9eea33a5a413.png)
 
 
 
@@ -2004,19 +2004,19 @@ Hash table size 553229, node heap has 17 buffer(s)
 
 # MySQL日志
 
-![image-20220611094736528](D:\code\gitee\cs-notes\images\Database\image-20220611094736528.png)
+![image-20220611094736528](images/Database/image-20220611094736528.png)
 
 
 
 **重做日志（redo log）、二进制日志（bin log）、回滚日志（undo log）、错误日志（error log）、慢查询日志（slow query log）、一般查询日志（general log）、中继日志（relay log）。**
 
-![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30312e706e67)
+![img](images/Database/68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30312e706e67)
 
 ## 二进制日志(bin log)
 
 `binlog` 用于记录数据库执行的写入性操作(不包括查询)信息，以二进制的形式保存在磁盘中。`binlog` 是 `mysql`的逻辑日志(即SQL语句)，并且由 `Server` 层进行记录，使用任何存储引擎的 `mysql` 数据库都会记录 `binlog` 日志。`binlog` 是通过追加的方式进行写入的，可以通过`max_binlog_size` 参数设置每个 `binlog`文件的大小，当文件大小达到给定值之后，会生成新的文件来保存日志。
 
-![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343734373834302e706e67)
+![img](images/Database68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343734373834302e706e67)
 
 **作用**
 
@@ -2053,7 +2053,7 @@ Hash table size 553229, node heap has 17 buffer(s)
 
 ## 重做日志(redo log)
 
-![img](D:\code\gitee\cs-notes\images\Database\68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343935363737342e706e67)
+![img](images/Database/68747470733a2f2f67756964652d626c6f672d696d616765732e6f73732d636e2d7368656e7a68656e2e616c6979756e63732e636f6d2f6769746875622f6a61766167756964652f30342d32303232303330353233343935363737342e706e67)
 
 **重做日志是InnoDB引擎层日志，用来记录事务操作引起数据变化，记录的是数据页的物理修改。**包括两部分：
 
@@ -2654,7 +2654,7 @@ select * from t where k1=1 and k3=3;
 
 什么是基因法分库？
 
-![img](D:\code\gitee\cs-notes\images\Database\dbsplithorizontalgene.png)
+![img](images/Database/dbsplithorizontalgene.png)
 
 如上图所示，uid=666的用户发布了一条帖子（666的二进制表示为：1010011010）：
  　使用uid%16分库，决定这行数据要插入到哪个库中

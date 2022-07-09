@@ -712,7 +712,7 @@ HBase是基于列存储、构建在HDFS上的分布式存储系统，其主要�
 
   
 
-![使用场景](D:\code\gitee\cs-notes\BigData.assets\640.jpeg)
+![使用场景](BigData.assets/640.jpeg)
 
 - 对象存储：我们知道不少的头条类、新闻类的的新闻、网页、图片存储在HBase之中，一些病毒公司的病毒库也是存储在HBase之中
 - 时序数据：HBase之上有OpenTSDB模块，可以满足时序类场景的需求

@@ -148,7 +148,7 @@ JVM 中运行的每个线程都拥有自己的线程栈，线程栈包含了当�
 所有基本类型(boolean、byte、short、char、int、long、float、double)的本地变量都直接保存在线程栈当中，对于它们的值各个线程之间都是独立的。对于原始类型的本地变量，一个线程可以传递一个副本给另一个线程，但它们之间是无法共享的。
 堆区包含了 Java 应用创建的所有对象信息，不管对象是哪个线程创建的，其中的对象包括原始类型的封装类（如Byte、Integer、Long等等）。不管对象是属于一个成员变量还是方法中的本地变量，它都会被存储在堆区。
 
-![在这里插入图片描述](D:\code\gitee\cs-notes\images\JVM\watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70asdfa)
+![在这里插入图片描述](images/JVM/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70asdfa)
 
 ```
 ● 如果一个本地变量是基本类型，那么它会被完全存储到栈区。
@@ -157,12 +157,12 @@ JVM 中运行的每个线程都拥有自己的线程栈，线程栈包含了当�
 ● 堆中的对象可以被多线程共享。如果一个线程获得一个对象的应用，它便可访问这个对象的成员变量。如果两个线程同时调用了同一个对象的同一个方法，那么这两个线程便可同时访问这个对象的成员变量，但是对于本地变量，每个线程都会拷贝一份到自己的线程栈中。
 ```
 
-![在这里插入图片描述](D:\code\gitee\cs-notes\images\JVM\watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70ddss)
+![在这里插入图片描述](images/JVM/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70ddss)
 
 **Java 内存模型和硬件架构之间的桥接**
 正如上面讲到的，Java内存模型和硬件内存架构并不一致。硬件内存架构中并没有区分栈和堆，从硬件上看，不管是栈还是堆，大部分数据都会存到主存中，当然一部分栈和堆的数据也有可能会存到CPU寄存器中，如下图所示，Java内存模型和计算机硬件内存架构是一个交叉关系：
 
-![在这里插入图片描述](D:\code\gitee\cs-notes\images\JVM\watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70wewre)
+![在这里插入图片描述](images/JVM/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0lUX19sZWFybmluZw==,size_16,color_FFFFFF,t_70wewre)
 
 
 
@@ -815,8 +815,6 @@ GC Roots 大体可以分为三大类：
 - 3.2. 将本对象 挪到 【黑色集合】里面。
 - 重复步骤3，直至【灰色集合】为空时结束。
 - 结束后，仍在【白色集合】的对象即为GC Roots 不可达，可以进行回收
-
-
 
 
 
