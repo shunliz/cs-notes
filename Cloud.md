@@ -2057,7 +2057,7 @@ Virtio寄存器有三种类型：设备状态字、功能特征位以及PCIe配�
 如表2所示，设备状态字（Device Status Field）标识了初始化序列步骤的完成情况。
 
 表2 设备状态字描述
-![aijshu_io2.png](D:\code\gitee\cs-notes\images\cloud\bVbaGy)
+![aijshu_io2.png](images\cloud\bVbaGy)
 
 基于设备状态字，Virtio协议定义并约束了驱动程序必须按照以下顺序初始化设备：
 
