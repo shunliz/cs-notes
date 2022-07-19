@@ -1488,6 +1488,10 @@ public void addGoods(){
 - **rollbackFor 设置错误，@Transactional 注解失效**
 - **方法之间的互相调用也会导致@Transactional失效**
 - **异常被你的 catch“吃了”导致@Transactional失效**
+- **访问方法为private,spring要求被代理方法必须是`public`的**
+- **final 方法事务失效，static同理。如果某个方法用final修饰了，那么在它的代理类中，就无法重写该方法，而添加事务功能**
+- **未被spring管理的bean，@Transactional失效**
+- **多线程环境，子线程异常父线程不能捕获。（不在同一个线程中，获取到的数据库连接不一样，从而是两个不同的事务）**
 
 
 
@@ -2736,7 +2740,7 @@ SHOW PROFILE FOR QUERY  #{id};
 
 **第4步：trace**
 
-trace分析优化器如何选择执行计划，通过trace文件能够进一步了解为什么优惠券选择A执行计划而不选择B执行计划。
+trace分析优化器如何选择执行计划，通过trace文件能够进一步了解为什么选择A执行计划而不选择B执行计划。
 
 ```mysql
 set optimizer_trace="enabled=on";

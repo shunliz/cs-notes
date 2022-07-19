@@ -1817,7 +1817,11 @@ Reconcile 将 SidercarSet 取出之后，根据 Selector 选择匹配的 Pod，�
 4. webhook 会拿回对应的 SidecarSet，并从中取出 container 注入 Pod 中，因此 Pod 在实际入库时就已带有了刚刚的 sidecar；
 5. controller 在后台不停地轮询，查看集群的状态变化。第 4 步中的注入会触发 SidecarSet 的入队，controller 就会令 SidecarSet 的 UpdatedPods 加 1。
 
+## 其它
 
+### kubervirt
+
+### virtual kubelet
 
 # Openstack
 
