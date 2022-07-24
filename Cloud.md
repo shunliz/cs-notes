@@ -66,6 +66,12 @@ containerd-shim 是 containerd 的一个组件，主要是用于剥离 container
 
 ## 容器/Docker
 
+![img](images/Cloud/v2-e68e538588a6842c0f2614c357024122_720w.jpg)
+[参考](refs/Docker_Source_read.md)
+**kataContainer**
+
+![img](images/Cloud/kata-explained1%402x.png)
+
 ### 计算
 
 容器运行时顾名思义就是要掌控容器运行的整个生命周期，以 docker 为例，其作为一个整体的系统，主要提供的功能如下：
@@ -1405,6 +1411,12 @@ CSI支持目前主流的大多数存储方案，包括Local等各种本地存储
 
 ### Flannel
 
+#### Flannel分配IP过程
+
+![img](images/Cloud/1000.png)
+
+![img](images/Cloud/1000-165853417632622.png)
+
 Flannel的设计目的就是为集群中的所有节点重新规划IP地址的使用规则，从而使得不同节点上的容器能够获得“同属一个内网”且”不重复的”IP地址，并让属于不同节点上的容器能够直接通过内网IP通信。
 
 Flannel实质上是一种“覆盖网络(overlaynetwork)”，也就是将TCP数据包装在另一种网络包里面进行路由转发和通信，目前已经支持udp、vxlan、host-gw、aws-vpc、gce和alloc路由等数据转发方式，默认的节点间数据通信方式是UDP转发。
@@ -1795,6 +1807,8 @@ operations 描述关注资源对象的哪些操作。
 - **填充业务逻辑**。修改 Reconcile 函数，循环处理工作队列。Reconcile 函数主要完成「根据 Spec 完成业务逻辑」和「将业务逻辑结果反馈回 status」两部分。需要注意的是，如果 Reconcile 函数出错返回 err，默认会重新入队。
 
   ![](images/cloud/v2-53be5551ac7edbc940f6c1b410c05dd7_720w.jpg)
+  
+  ![在这里插入图片描述](images/Cloud/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lhbmNoZW5kYWdl,size_16,color_FFFFFF,t_70.png)
 
 ![](images/cloud/v2-4a718eb195fe97a055f7f9517994ef06_720w.jpg)
 
@@ -2549,6 +2563,13 @@ SR-IOV是让PCIE设备扩展支持硬件虚拟化的规范，具体规范可见h
 
 vDPA技术，这种技术让SR-IOV网卡的VF提供标准的virtqueue数据面接口，同时保留在驱动中自定义控制面功能的灵活性。从而解决虚拟机对特定网卡和驱动的依赖，同时保留网卡功能的多样性和可扩展性。
 
+# hypernetes
+
+https://github.com/hyperhq/hypernetes
+
+![2015-11-10 9 23 14](images/Cloud/fac21258-878c-11e5-8545-a2b374ee5d70.png)
+
+![img](images/Cloud/architecture.png)
 
 # Ceph
 

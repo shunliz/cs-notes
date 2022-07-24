@@ -7058,6 +7058,139 @@ Spring Cloud Sleuth是Spring Cloud 个组件，它的主要功能是在分布式
 
 
 
+# 缓存
+
+## I2cache
+
+https://gitee.com/ck-jesse/l2cache
+
+ **核心功能**
+
+- 支持多种缓存类型：一级缓存、二级缓存、混合缓存
+- 支持批量操作：支持分页的批量获取、批量删除等
+- 缓存一致性保证：支持通过多种消息通知的方式来保证集群环境下一级缓存的一致性
+- 动态缓存配置：支持动态调整混合缓存下的缓存类型；支持热key的手动配置
+- 热key探测：自动识别热key并缓存到一级缓存
+- 痛点问题解决：缓存击穿、缓存穿透
+
+### 缓存更新
+
+`缓存更新`包含了对`Caffeine` 和 `redis`的操作，同时会通知其他缓存节点进行`缓存更新`操作。
+
+**1、主动更新**
+
+> 1）获取缓存时，若缓存不存在或缓存已过期，则重新加载缓存。
+>
+> *2）源数据变更后，可调用`CacheManagerController.refresh(cacheName,key)`接口重新加载缓存（只对已存在的key重新加载）。 在重构后的版本中已经去掉`CacheManagerController`的实现，因为很少会有场景会使用到。
+
+**2、自动更新**
+
+> 通过`定期刷新过期缓存`（只对过期缓存进行重新加载），尽可能的保证分布式缓存的一致性。
+>
+> 每一个`cacheName`对应一个刷新任务，通过任务调度线程池实现调度。相比第一个版本，粒度更细。
+>
+> 如果 `L1Cache` 是 `LoadingCache`，并且自定义`CuntomCacheLoader`中 `L2Cache` 不为空，则同时刷新`L1Cache`和`L2Cache`。详见`CaffeineCache`。
+
+### 缓存淘汰
+
+`缓存淘汰`包含了对`Caffeine` 和 `redis`的操作，同时会通知其他缓存节点进行`缓存淘汰`操作。
+
+**1、主动淘汰**
+
+> 1）获取缓存时去检查缓存是否过期，若过期则淘汰缓存。
+>
+> 2）结合`@CacheEvict`在源数据修改前或修改后，淘汰缓存。
+>
+> 3）源数据变更后，可调用`CacheManagerController.clear(cacheName,key)`接口淘汰缓存。
+
+**2、自动淘汰**
+
+> *第一个版本`redis`中的缓存数据是利用`redis`的淘汰策略来管理的。具体可参考redis的6种淘汰策略。*
+>
+> 第二个版本是基于`redisson`实现，而其是通过`org.redisson.EvictionScheduler`实例来实现定期清理的，也就是`redis`中的缓存不设置过期时间，由应用自身来进行维护。
+
+### 缓存预热
+
+**1、手动预热**
+
+> 直接调用标记了 `@Cacheable` 或 `CachePut` 注解的业务接口进行缓存的预热即可。
+
+**2、自动预热**
+
+> 系统启动完毕后，自动调用业务接口将数据加载到缓存。
+>
+> 注：`缓存预热` 逻辑需要业务系统自行实现。
+
+### 热点数据
+
+**定义：**
+
+> 缓存集群中的某个key瞬间被数万甚至十万的并发请求打爆。
+
+**方案：**
+
+1、采用本地缓存来缓解缓存集群和数据库集群的压力。本二级缓存框架可完全应对该场景。
+
+2、应用层面做限流熔断保护，保护后面的缓存集群和数据库集群不被打死。
+
+> 问：怎么保证`redis`中的数据都是热点数据?
+>
+> 当`redis`内存数据集上升到一定大小时，通过`redis`的淘汰策略来保证。通过`maxmemory`设置最大内存。
+
+### 缓存雪崩
+
+**定义：**
+
+> 由于大量缓存失效，导致大量请求打到DB上，DB的CPU和内存压力巨大，从而出现一系列连锁反应，造成整个系统崩溃。
+
+**方案：**
+
+> `Caffeine`默认使用异步机制加载缓存数据，可有效防止缓存击穿（防止同一个key或不同key被击穿的场景）。注：结合`refreshAfterWrite` 异步刷新缓存，。
+
+**预防：**
+
+**缓存高可用**
+
+> 缓存层设计成高可用，防止缓存大面积故障。例如 `Redis Sentinel` 和 `Redis Cluster` 都实现了高可用。
+
+**缓存降级**
+
+> 利用本地缓存，一定程度上保证服务的可用性(即使是有损的)。但主要还是通过对源服务的访问进行限流、熔断、降级等手段。
+
+**提前演练**
+
+> 建议项目上线前，演练缓存层宕机后，应用以及后端的负载情况以及可能出现的问题，对高可用提前预演，提前发现问题。
+
+### 缓存击穿
+
+**定义：**
+
+> 在平常高并发的系统中，大量的请求同时查询一个 key 时，此时这个key正好失效了，就会导致大量的请求都打到数据库上面去。这种现象我们称为**缓存击穿**。
+>
+> 注：缓存击穿也可以理解为是热点数据的一种场景。
+
+**方案：**
+
+> `Caffeine`默认使用异步机制加载缓存数据，可有效防止缓存击穿（防止同一个key或不同key被击穿的场景）。
+
+### 缓存穿透
+
+**定义：**
+
+> 请求根本就不存在的数据，也就是缓存和数据库都查询不到这条数据，但是请求每次都会打到数据库上面去。这种查询不存在数据的现象我们称为**缓存穿透**。
+
+**方案：**
+
+> 通过对不存在的key缓存空值，来防止缓存穿透。
+>
+> 注：也可以采用`BloomFilter`来对key进行过滤（暂未实现）。
+
+> 注：对于高并发系统，可以结合 `Hystrix` 或 `Sentinel`来做应用级别的限流和降级，以保护下游系统不会被大量的请求给打死。
+
+### 缓存数据库一直保证
+
+[参考](refs/DB_cache_consistent.md)
+
 # MyBatis
 
 Mybatis是一个半ORM（对象关系映射）框架，它内部封装了JDBC，加载驱动、创建连接、创建statement等繁杂的过程，开发者开发时只需要关注如何编写SQL语句，可以严格控制sql执行性能，灵活度高。
@@ -7232,7 +7365,63 @@ TypeHandler主要用在两个地方：
 
 - 获取结果集中的字段值，发生在ResultSetHandler处理结果集的过程中
 
+## 乐观锁悲观锁
 
+数据锁分为乐观锁和悲观锁，那么它们使用的场景如下：
+
+　　1. 乐观锁适用于写少读多的情景，因为这种乐观锁相当于JAVA的CAS，所以多条数据同时过来的时候，不用等待，可以立即进行返回。
+
+　　2. 悲观锁适用于写多读少的情景，这种情况也相当于JAVA的synchronized，reentrantLock等，大量数据过来的时候，只有一条数据可以被写入，其他的数据需要等待。执行完成后下一条数据可以继续。
+
+　　他们实现的方式上有所不同，乐观锁采用版本号的方式，即当前版本号如果对应上了就可以写入数据，如果判断当前版本号不一致，那么就不会更新成功，比如 update table set column = value where version=${version} and otherKey = ${otherKey}。悲观锁实现的机制一般是在执行更新语句的时候采用for update方式，比如 update table set column='value' for update。这种情况where条件呢一定要涉及到数据库对应的索引字段，这样才会是行级锁，否则会是表锁，这样执行速度会变慢。
+
+```
+JPA 悲观锁原始方式：
+public` `interface` `ArticleRepository ``extends` `JpaRepository<Article, Long> {
+  ``@Query``(value = ``"select * from article a where a.id = :id for update"``, nativeQuery = ``true``)
+  ``Optional<Article> findArticleForUpdate(Long id);
+}
+==========================================================================================================
+JPA悲观锁Lock注解方式：
+关于LockModeType这个类型,可以在这找到文档 https://docs.oracle.com/javaee/7/api/javax/persistence/LockModeType.html
+
+NONE: No lock.
+OPTIMISTIC: Optimistic lock.
+OPTIMISTIC_FORCE_INCREMENT: Optimistic lock, with version update.
+PESSIMISTIC_FORCE_INCREMENT: Pessimistic write lock, with version update.
+PESSIMISTIC_READ: Pessimistic read lock.
+PESSIMISTIC_WRITE: Pessimistic write lock.
+READ: Synonymous with OPTIMISTIC.
+WRITE: Synonymous with OPTIMISTIC_FORCE_INCREMENT.
+
+public interface ArticleRepository extends JpaRepository<Article, Long> { 
+    @Lock(value = LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Article a where a.id = :id")
+    Optional<Article> findArticleWithPessimisticLock(Long id);
+}
+=========================================================================================================
+JPA原始方式乐观锁：
+public interface ArticleRepository extends JpaRepository<Article, Long> {
+    @Modifying
+    @Query(value = "update article set content= :content, version = version + 1 where id = :id and version = :version", nativeQuery = true)
+    int updateArticleWithVersion(Long id, String content, Long version);
+}
+===========================================================================================================
+JPA注解方式乐观锁：
+@Data
+@Entity
+public class Article{ 
+    @Id
+    private Long id;  
+  //......  
+    @Version
+    private Integer version; 
+}
+Article article = entityManager.find(Article.class, id);
+entityManager.lock(article , LockModeType.OPTIMISTIC);
+entityManager.refresh(article , LockModeType.READ);
+//mybatis-plus需要一个插件支持@version乐观锁
+```
 
 # Nginx
 

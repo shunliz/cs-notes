@@ -1604,6 +1604,64 @@ T3:泡茶...
 上茶:龙井
 ```
 
+## Random&ThreadLocalRandom
+
+每个Random实例里面都有一个原子性的种子变量用来记录当前的种子值，当要生成新的随机数时需要根据当前种子计算新的种子并更新回原子变量。在多线程下使用单个Random实例生成随机数时，当多个线程同时计算随机数来计算新的种子时，多个线程会竞争同一个原子变量的更新操作，由于原子变量的更新是CAS操作，同时只有一个线程会成功，所以会造成大量线程进行自旋重试，这会降低并发性能，所以ThreadLocalRandom应运而生
+
+其实ThreadLocalRandom和ThreadLocal的实现原理类似，都是通过让每一个线程复制一份变量，使得在每个线程对变量进行操作时实际是操作自己本地内存里面的副本，从而避免了对共享变量进行同步。
+
+每个线程都维护一个种子变量，则每个线程生成随机数时都根据自己老的种子计算新的种子，并使用新种子更新老的种子，再根据新种子计算随机数，就不会存在竞争问题了，这会大大提高并发性能。 原理如下图所示:
+
+![在这里插入图片描述](images/JAVA/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzQzNDA0ODcz,size_16,color_FFFFFF,t_70.png)
+
+ThreadLocalRandom 不能定义成全局变量供所有线程使用，否则所有线程seed相同，生成相同随机数。
+
+**错误用法**
+
+```java
+import java.util.concurrent.ThreadLocalRandom;
+
+public class ThreadLocalRandomDemo {
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            new Player().start();
+        }
+    }
+     
+    private static class Player extends Thread {
+        @Override
+        public void run() {
+            System.out.println(getName() + ": " + ThreadLocalRandom.current().nextInt(100));
+        }
+    }
+
+}
+```
+
+**正确用法**
+
+```java
+import java.util.concurrent.ThreadLocalRandom;
+
+public class ThreadLocalRandomDemo {
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            new Player().start();
+        }
+    }
+     
+    private static class Player extends Thread {
+        @Override
+        public void run() {
+            System.out.println(getName() + ": " + ThreadLocalRandom.current().nextInt(100));
+        }
+    }
+
+}
+```
+
 
 
 # 集合
@@ -3975,6 +4033,313 @@ public void vectorTest(){
 - **减少锁的粒度**：将物理上的一个锁，拆成逻辑上的多个锁，增加并行度，从而降低锁竞争。其思想是用空间来换时间
 
 
+
+# Lock-free
+
+通常在一个多线程环境下，我们需要共享某些数据，但为了避免竞争条件引致数据出现不一致的情况，某些代码段需要变成原子操作去执行。这时，我们便需要利用各种同步机制如互斥（Mutex）去为这些代码段加锁，让某一线程可以独占共享数据，避免竞争条件，确保数据一致性。但可惜的是，这属于阻塞性同步，所有其他线程唯一可以做的就是等待。基于锁（Lock based）的多线程设计更可能引发死锁、优先级倒置、饥饿等情况，令到一些线程无法继续其进度。
+
+锁无关（Lock free）算法，顾名思义，即不牵涉锁的使用。这类算法可以在不使用锁的情况下同步各个线程。对比基于锁的多线程设计，锁无关算法有以下优势：
+
+- 对死锁、优先级倒置等问题免疫：它属于非阻塞性同步，因为它不使用锁来协调各个线程，所以对死锁、优先级倒置等由锁引起的问题免疫；
+- 保证程序的整体进度：由于锁无关算法避免了死锁等情况出现，所以它能确保线程是在运行当中，从而确保程序的整体进度；
+- 性能理想：因为不涉及使用锁，所以在普遍的负载环境下，使用锁无关算法可以得到理想的性能提升。
+
+自 JDK 1.5 推出之后，当中的 `java.util.concurrent.atomic` 的一组类为实现锁无关算法提供了重要的基础。如何将锁无关算法应用到基本的数据结构中，去避免竞争条件，允许多个线程同时存取和使用集合中的共享数据。如果一个数据结构本身并非是线程安全的，一旦在多线程环境下使用这个数据结构，必须施加某种同步机制，否则很可能会出现竞争条件。设计的锁无关数据结构是线程安全的，所以使用时无需再编写额外代码去确保竞争条件不会出现。
+
+## 栈
+
+### 非线程安全的栈实现
+
+```java
+class Node<T> { 
+    Node<T> next; 
+    T value; 
+    
+    public Node(T value, Node<T> next) { 
+        this.next = next; 
+        this.value = value; 
+    } 
+ } 
+
+ public class Stack<T> { 
+    Node<T> top; 
+    
+    public void push(T value) { 
+        Node<T> newTop = new Node<T>(value, top); 
+        top = newTop; 
+    } 
+    
+    public T pop() { 
+        Node<T> node = top; 
+        top = top.next; 
+        return node.value; 
+    } 
+    
+    public T peek() { 
+        return top.value; 
+    } 
+ }
+```
+
+数据成员 `top` 储存着栈顶的节点，它的类型为 `Node<T>` ，这是因为我们的栈是基于链表的。 `Node<T>` 代表一个节点，它有两个数据成员，`value` 储存着入栈的元素，而 `next` 储存下一个节点。这个类有三个方法，分别是 `push` 、 `pop` 和 `peek` ，它们是基本的栈操作。除了 `peek` 方法是线程安全之外，其余两个方法在多线程环境之下都有可能引发竞争条件。
+
+**push 方法**
+
+让我们先考虑一下 `push` 方法，它能将一个元素入栈。调用 `push` 时，它首先建立一个新的节点，并将 `value` 数据成员设定为传入的参数，而`next` 数据成员则被赋值为当前的栈顶。然后它把 `top` 数据成员设定成新建立的节点。假设有两个线程 A 和 B 同时调用 `push` 方法，线程 A 获取当前栈顶的节点去建立新的节点（ `push` 方法代码第一行），但由于时间片用完，线程 A 暂时挂起。此时，线程 B 获取当前栈顶的节点去建立新的节点，并把 `top` 设定成新建立的节点（ `push` 方法代码第二行）。然后，线程 A 恢复执行，更新栈顶。当线程 B 对 `push` 的调用完成后，线程 A 原本获得的栈顶已经「过期」，因为线程 B 用新的节点取代了原本的栈顶。
+
+**pop 方法**
+
+至于 `pop` 方法，它把栈顶的元素弹出。 `pop` 方法把栈顶暂存在一个本地变量 `node` ，然后用下一个节点去更新栈顶，最后返回变量 `node` 的`value` 数据成员。如果两个线程同时调用这个方法，可能会引起竞争条件。当一个线程将当前栈顶赋值到变量 `node` ，并准备用下一个节点更新栈顶时，这个线程挂起。另一个线程亦调用 `pop` 方法，完成并返回结果。刚刚被挂起的线程恢复执行，但由于栈顶被另一个线程变更了，所以继续执行的话会引起同步问题。
+
+**peek 方法**
+
+而 `peek` 方法只是简单地返回当前位于栈顶的元素，这个方法是线程安全的，没有同步问题要解决。
+
+###  锁无关的栈实现
+
+```java
+ import java.util.concurrent.atomic.*; 
+
+ class Node<T> { 
+    Node<T> next; 
+    T value; 
+    
+    public Node(T value, Node<T> next) { 
+        this.next = next; 
+        this.value = value; 
+    } 
+ } 
+
+ public class Stack<T> { 
+    AtomicReference<Node<T>> top = new AtomicReference<Node<T>>(); 
+    
+    public void push(T value) { 
+        boolean sucessful = false; 
+        while (!sucessful) { 
+            Node<T> oldTop = top.get(); 
+            Node<T> newTop = new Node<T>(value, oldTop); 
+            sucessful = top.compareAndSet(oldTop, newTop); 
+        }; 
+    } 
+    
+    public T peek() { 
+        return top.get().value; 
+    } 
+    
+    public T pop() { 
+        boolean sucessful = false; 
+        Node<T> newTop = null; 
+        Node<T> oldTop = null; 
+        while (!sucessful) { 
+            oldTop = top.get(); 
+            newTop = oldTop.next; 
+            sucessful = top.compareAndSet(oldTop, newTop); 
+        } 
+        return oldTop.value; 
+    } 
+ }
+```
+
+这个新的实现方式和刚刚的很不同，看似比较复杂。成员数据 `top` 的类型由 `Node<T>` 改为 `AtomicReference<Node<T>>` ，`AtomicReference<V>` 这个类可以对 `top` 数据成员施加 `CAS` 操作，亦即是可以允许 `top` 原子地和一个期望值比较，两者相同的话便用一个指定值取代。从上文可知，我们需要解决遇到栈顶「过期」的问题。
+
+**push 方法**
+
+现在我们先分析新的 `push` 方法如何处理这个问题，确保竞争条件不会出现。在 `while` 循环中，通过在 `top` 数据成员调用`AtomicReference.get()` ， `oldTop` 持有当前栈顶节点，这个栈顶稍后会被取替。变量 `newTop` 则被初始化为新的节点。最重要的一步，`top.compareAndSet(oldTop, newTop)` ，它比较 `top` 和 `oldTop` 这两个引用是否相同，去确保 `oldTop` 持有的栈顶并未「过期」，亦即未被其他线程变更。假如没有过期，则用 `newTop` 去更新 `top` ，使之成为新的栈顶，并返回 `boolean` 值 `true` 。否则， `compareAndSet` 方法便返回`false` ，并且令到循环继续执行，直至成功。因为 `compareAndSet` 是原子操作，所以可以保证数据一致。
+
+**pop 方法**
+
+`pop` 方法把栈顶的元素弹出，它的实现方式和 `push` 方法十分类同。在 `while` 循环内， `compareAndSet` 检查栈顶有没有被其他线程改变，数据一致的话便更新 `top` 数据成员并把原本栈顶弹出。如果失败，便重新尝试，直至成功。
+
+`push` 和 `pop` 都没有使用任何锁，所以全部线程都不用停下来等待。
+
+## 链表
+
+### 非线程安全的链表实现
+
+```java
+class Node<T> { 
+    Node<T> next; 
+    T value; 
+    
+    public Node(T value, Node<T> next) { 
+        this.value = value; 
+        this.next = next; 
+    } 
+ } 
+
+ class LinkedList<T> { 
+    Node<T> head; 
+    
+    public LinkedList() { 
+        head = new Node<T>(null, null); 
+    } 
+    
+    public void addFirst(T value) { 
+        addAfter(head.value, value); 
+    } 
+    
+    public boolean addAfter(T after, T value) { 
+        for (Node<T> node = head; node != null; node = node.next) { 
+            if (isEqual(node.value, after)) { 
+                Node<T> newNode = new Node<T>(value, node.next); 
+                node.next = newNode; 
+                return true; 
+            } 
+        } 
+        return false; 
+    } 
+    
+    public boolean remove(T value) { 
+        for (Node<T> node = head; node.next != null; node = node.next) { 
+            if (isEqual(node.next.value, value)) { 
+                node.next = node.next.next; 
+                return true; 
+            } 
+        } 
+        return false; 
+    } 
+    
+    boolean isEqual(T arg0, T arg1) { 
+        if (arg0 == null) { 
+            return arg0 == arg1; 
+        } else { 
+            return arg0.equals(arg1); 
+        } 
+    } 
+ }
+```
+
+数据成员 `head` 是链表的头，它没有存储任何元素，而是直接指向第一个元素，这可以令稍后的 `remove` 方法较易实现。这个链表有三个公用方法，其中 `addAfter` 和 `remove` 比较重要。
+
+**addAfter 方法**
+
+先考虑一下 `addAfter` 方法，这个方法把一个新元素加入到集合内指定元素之后的位置，并返回一个 `boolean` 值指示元素有没有被加入到集合中，元素没有被加入的原因是因为集合内没有所指定的元素。它首先在一个 `for` 循环中寻找指定元素的节点，成功发现指定的节点后，便建立一个新节点。这个新节点的 `next` 数据成员连接到指定节点原本的 `next` ，指定节点的 `next` 则连到新节点上。另一方面， `remove` 方法寻找指定元素并从集合中移除，并且返回一个 `boolean` 值指示元素有没有被移除，返回 `false` 代表集合中没有指定的元素。这个方法在一个循环寻找要移除的元素，并且将左右两边的元素重新连接。
+
+在多线程环境下，如果两个线程同时调用 `addAfter` 或 `remove` 方法，或者一个线程调用 `addAfter` 方法而同一时间另一个线程调用 `remove` 方法均有机会引发竞争条件。
+
+试想像现在链表内有三个元素，分别是 A、B 和 C 。如果一个线程准备把一个元素加到 A 之后，它首先确定 A 节点的位置，然后新建一个节点 A1，这个节点的 `value` 数据成员储存着新加入的元素，而 `next` 数据成员则储存着 B 节点的引用。当这个线程准备把 A 和 A1 通过 `next` 成员连接起来时，此时线程因为时间片用完而被挂起。另一个线程亦准备在 A 之后加入一个新元素，它建立 A2 节点，并解除 A 和 B 原本的连结，然后依着 A-A2-B 的次序重新连接三个节点，操作完成。现在，刚刚被挂起的线程恢复执行，并依着 A-A1-B 的次序去重新连接三个节点。这时问题出现，刚刚新加入的 A2 节点遗失了。解决方法是，每一次准备把 A 元素和新建立的节点连接时，检查 A 节的 `next` 有否被其他线程改动过，没有改动过才进行连接，这是通过 `CAS` 操作原子地进行的。
+
+**addAfter 和 remove 的冲突**
+
+同时间执行 `addAfter` 和 `remove` 亦有可能引起竞争条件。同样地，现在一个链表内有三个元素 A、B 和 C 。当一个线程准备调用 `remove` 方法从这个集合中移除 B 元素，它首先获得 A 节点，然后准备通过改变 A 节点的 `next` 成员，把 A 和 C 互相连接时，这个线程突然被挂起。此时另一个线程调用 `addAfter` 方法在 B 节点后插入一个新的元素 B2 。插入操作完成后，刚才被挂起的线程恢复执行，并且通过改变 `next` 成员把 A 和 C 互相连接，完成移除操作。可是，刚刚被加入的 B2 元素则遗失了，因为 A 节点跳过了 B 节点，直接连接着 C 节点。故此，我们要有一个解决方案。 Timothy L. Harris 提供了一个方法，他把整个移除过程分成两个步骤，逻辑删除和物理删除。逻辑删除并非真正地移除一个节点，而是把要移除的节点标记为已删除。另一方面，物理删除则真实从集合左移除一个节点。每次要加入新元素到指定节点之后，都必先检查该节点有没有被标记为删除，没有的话才把新的节点连接到集合中。这是通过 `AtomicMarkableReference``<V>` 类中的 `compareAndSet` 方法原子地进行的。
+
+**remove 方法**
+
+链表有可能发生的冲突比较多，另一个问题便是两个线程同时间执行 `remove` 方法。这个问题和同时间执行 `addAfter` 有点类同。现在假设一个集合内有四个元素 A、B、C 和 D，一个线程调用 `remove` 方法去移除元素 B 。它首先确定了 A 和 C 的位置，然后准备解除 A 和 B 的连结，再将 A 和 C 连接起来，实际的移除还未实行，这时这个线程被挂起了。另一个线程亦调用 `remove` 方法移除 C 元素，它解除 B 和 C 的连结，并把 B 和 D 连接起来，移除操作完成。之后刚才的线程恢复运行，继续执行余下的操作，把 A 和 C 连接起来，这样之前的移除 C 的操作便受到了破坏。最终链表中的元素变成 A-C-D，C 元素没有被移除。所以，我们 `remove` 方法需要确定要移除的元素的 `next` 有没有被改变。例如移除 B 的时候，检查 A 的 `next` 有没有被其他线程更动，以及有没有被标记为已经逻辑地删除。这亦是透过 `CAS` 操作去完成的。
+
+从上文的各种情况可见，我们必须原子地施加某些检查机制，确保数据的一致性。我们现在看看解决这些问题的锁无关链表是如何实现的，这些代码应该和读者在算法书上看到的很不同。以下是它的代码：
+
+### 锁无关的链表实现
+
+```java
+ import java.util.concurrent.atomic.*; 
+
+ class Node<T> { 
+    AtomicMarkableReference<Node<T>> next; 
+    T value; 
+    
+    public Node(T value, Node<T> next) { 
+        this.next = new AtomicMarkableReference<Node<T>>(next, false); 
+        this.value = value; 
+    } 
+ } 
+    
+ class LinkedList<T> { 
+    AtomicMarkableReference<Node<T>> head; 
+
+    public LinkedList() { 
+        Node<T> headNode = new Node<T>(null, null); 
+        head = new AtomicMarkableReference<Node<T>>(headNode, false); 
+    } 
+    
+    public void addFirst(T value) { 
+        addAfter(head.getReference().value, value); 
+    } 
+    
+    public boolean addAfter(T after, T value) { 
+        boolean sucessful = false; 
+        while (!sucessful) { 
+            boolean found = false; 
+            for (Node<T> node = head.getReference(); node != null && !isRemoved(node); 
+            node = node.next.getReference()) { 
+                if (isEqual(node.value, after) && !node.next.isMarked()) { 
+                    found = true; 
+                    Node<T> nextNode = node.next.getReference(); 
+                    Node<T> newNode = new Node<T>(value, nextNode); 
+                    sucessful = node.next.compareAndSet(nextNode, newNode, false, false); 
+                    break; 
+                } 
+            } 
+            if (!found) { 
+                return false; 
+            } 
+        } 
+        return true; 
+    } 
+    
+    public boolean remove(T value) { 
+        boolean sucessful = false; 
+        while (!sucessful) { 
+            boolean found = false; 
+            for (Node<T> node = head.getReference(), nextNode = node.next.getReference(); 
+            nextNode != null; node = nextNode, nextNode = nextNode.next.getReference()) { 
+                if (!isRemoved(nextNode) && isEqual(nextNode.value, value)) { 
+                    found = true; 
+                    logicallyRemove(nextNode); 
+                    sucessful = physicallyRemove(node, nextNode); 
+                    break; 
+                } 
+            } 
+            if (!found) { 
+                return false; 
+            } 
+        } 
+        return true; 
+    } 
+    
+    void logicallyRemove(Node<T> node) { 
+        while (!node.next.attemptMark(node.next.getReference(), true)) { } 
+    } 
+    
+    boolean physicallyRemove(Node<T> leftNode, Node<T> node) { 
+        Node<T> rightNode = node; 
+        do { 
+            rightNode = rightNode.next.getReference(); 
+        } while (rightNode != null && isRemoved(rightNode)); 
+        return leftNode.next.compareAndSet(node, rightNode, false, false); 
+    } 
+    
+    boolean isRemoved(Node<T> node) { 
+        return node.next.isMarked(); 
+    } 
+    
+    boolean isEqual(T arg0, T arg1) { 
+        if (arg0 == null) { 
+            return arg0 == arg1; 
+        } else { 
+            return arg0.equals(arg1); 
+        } 
+    } 
+ }
+```
+
+和之前不同， `Node` 类中的 `next` 成员数据属于 `AtomicMarkableReference<V>` 类，不是 `Node<T>` ，亦不是 `AtomicReference<V>` 。这是因为我们不但需要在 `next` 成员进行 `CAS` 操作，也需要在 next 中加上标记。 `AtomicMarkableReference<V>` 上的标记是以一个 `boolean` 表示的。我们会以设定它为 `true` 来代表一个节点已被逻辑删除， `false` 则代表这个节点未被逻辑删除。当一个节点被标记为已经逻辑地删除，它的`next` 数据成员的标记位会被设定成 `boolean` 值 `true` 。另一方面，链表中的 `head` 亦属 `AtomicMarkableReference<V>` 这类型，因为我们也需要进行同样的操作。
+
+**addAfter 方法**
+
+首先考虑一下 `addAfter` 方法， `addAfter` 方法的设计必须顾虑到两个线程同时间插入及同时间一个线程插入和一个线程移除的冲突。在一个`for` 循环中，它遍历集合去寻找 `after` 所位于的节点，并通过调用 `getReference()` 把 `after` 的下一个节点赋值到 `nextNode` 变量中。然后，建立一个新的节点去容纳新加入的元素，它通过 `next` 数据成员和 `nextNode` 变量进行连接。下一步，在 `node` 变量上调用 `compareAndSet` 。不同之处在于它不但比较两个引用是否相同去确保 `next` 数据成员没有被其他线程改变过，它亦会比较 `boolean` 标记位和期望值是否相同。上文提到， `AtomicMarkableReference``<V>` 类拥有一个标记位，我们利用它去检查一个节点是否已被逻辑地删除了。如果我们发现那个节点已被`logicallyRemove` 方法标记为已经被逻辑地删除， `compareAndSet` 方法便会失败，并继续循环寻找下一个符合的节点。若果循环终结后仍未寻找到指定的元素， `a``ddAfter` 方法便会返回 `false` 以表示由于集合内不存在指定的元素，所以元素无法被加入到集合中。 `compareAndSet` 返回 `true` 便代表元素插入成功，方法便会返回并结束。
+
+**addFirst 方法**
+
+`addFirst` 方法只是简单地调用 `addAfter` 方法去把一个新的元素插入到集合的开端。
+
+**Remove 方法**
+
+`remove` 方法在一个循环内寻找要移除元素的前一个节点，然后确定这个节点未被逻辑地移除。确定后，它首先调用 `logicallyRemove` 逻辑地删除节点，然后调用 `physicallyRemove` 物理地删除节点。在 `logicallyRemove` 中，我们调用 `AtomicMarkableReference``<V>` 中的`attemptMark` 来设定标记位。由于 `attemptMark` 可能会失败，所以要将它放进一个 `while` 循环中，经过 `attemptMark` 设定标记的节点代表该节点已被逻辑地删除。在 `physicallyRemove` 方法中，它首先检查邻近的其他节点是否都已经被标记为逻辑删除，若果已被标记则顺道物理地移除它们。这是通过 `compareAndSet` 完成， `compareAndSet` 会检查节点是否已被逻辑地删除，以及上一个节点的 `next` 成员未被其他线程更改。这样可以确保两个线程同时调用 `remove` 方法，或者分别同时间调用 `remove` 方法和 `a``ddAfter` 方法的时候，竞争条件不会发生。
+
+### ABA问题
+
+ABA问题可以通过AtomicStampedReference解决。但是这里主要是内存引用地址，所以不用AtomicStampedReference也可以。
 
 # Throwable
 
