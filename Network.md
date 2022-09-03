@@ -221,3 +221,379 @@ TCP协议中有长连接和短连接之分。短连接环境下，数据交互�
 
 
 ![图3-2](images/Network/22222adsfsdf)同样Nagle算法也有其弊端，即不适用于所有场景，像上图的这个例子，远程终端无法实时显示输入的字符，也无法通过TAB键来实时补全指令，因为它要收集齐一个MSS或者等超时后才发送给服务器。另在一些敏感业务和对实时数据要求高的场景，比如CSGO下，你看到敌人要偷袭你的队友，恰好你黄雀在后，准备老六，结果点了鼠标没反应，因为点击一次产生的数据没到一个MSS(单个报文的最大报文段长度)，点击鼠标的指令没有发送给服务器，那你就等着被队友抽。
+
+
+
+# Linux network
+
+![图片](images/Network/43a973048ed798dd12ef7495f70ad327.png)
+
+## Tap/Tun,Veth, Network Namespace
+
+## Iptables/netfilter
+
+![图片](images/Network/a5fcb13f0d9179dc3344da30bfcb88f1.png)
+
+## Openvswitch/OVN
+
+## eBPF
+
+### **e****BPF的历史**
+
+BPF 是 Linux 内核中高度灵活和高效的类似虚拟机的技术，允许以安全的方式在各个挂钩点执行字节码。它用于许多 Linux 内核子系统，最突出的是网络、跟踪和安全（例如沙箱）。
+
+![图片](images/Network/2f628dcaa6ee45131da68982b23845bf.png)
+
+**BPF架构**
+
+BPF 是一个通用目的 RISC 指令集，其最初的设计目标是：用 C 语言的一个子集编 写程序，然后用一个编译器后端（例如 LLVM）将其编译成 BPF 指令，稍后内核再通 过一个位于内核中的（in-kernel）即时编译器（JIT Compiler）将 BPF 指令映射成处理器的原生指令（opcode ），以取得在内核中的最佳执行性能。
+
+![图片](images/Network/8321d41526174c18189fb41dce80f45a.png)
+
+**BPF指令**
+
+尽管 BPF 自 1992 年就存在，扩展的 Berkeley Packet Filter (eBPF) 版本首次出现在 Kernel3.18中，如今被称为“经典”BPF (cBPF) 的版本已过时。许多人都知道 cBPF是tcpdump使用的数据包过滤语言。现在Linux内核只运行 eBPF，并且加载的 cBPF 字节码在程序执行之前被透明地转换为内核中的eBPF表示。除非指出 eBPF 和 cBPF 之间的明确区别，一般现在说的BPF就是指eBPF。
+
+### **e****BPF总体设计**
+
+![图片](images/Network/b378872347952f1021622e1ba4787e19.png)
+
+  
+
+- BPF 不仅通过提供其指令集来定义自己，而且还通过提供围绕它的进一步基础设施，例如充当高效键/值存储的映射、与内核功能交互并利用内核功能的辅助函数、调用其他 BPF 程序的尾调用、安全加固原语、用于固定对象（地图、程序）的伪文件系统，以及允许将 BPF 卸载到网卡的基础设施。
+- LLVM 提供了一个 BPF后端，因此可以使用像 clang 这样的工具将 C 编译成 BPF 目标文件，然后可以将其加载到内核中。BPF与Linux 内核紧密相连，允许在不牺牲本机内核性能的情况下实现完全可编程。
+
+eBPF总体设计包括以下几个部分：
+
+**eBPF Runtime**
+
+![图片](images/Network/105ca28b2373a2c4a1a667f05b46d6eb.png)
+
+
+
+- 安全保障 ： eBPF的verifier 将拒绝任何不安全的程序并提供沙箱运行环境
+- 持续交付： 程序可以更新在不中断工作负载的情况下
+- 高性能：JIT编译器可以保证运行性能
+
+**eBPF Hooks**
+
+![图片](images/Network/456eb4066e4d131a2ed46fef1d704b42.png)
+
+- 内核函数 (kprobes)、用户空间函数 (uprobes)、系统调用、fentry/fexit、跟踪点、网络设备 (tc/xdp)、网络路由、TCP 拥塞算法、套接字（数据面）
+
+**eBPF Maps**
+
+![图片](images/Network/7b1b34ea5237d38149142e17dccf7176.png)
+
+Map 类型
+
+\- Hash tables, Arrays
+
+\- LRU (Least Recently Used)
+
+\- Ring Buffer
+
+\- Stack Trace
+
+\- LPM (Longest Prefix match)
+
+作用
+
+- 程序状态
+- 程序配置
+- 程序间共享数据
+- 和用户空间共享状态、指标和统计
+
+**eBPF Helpers**
+
+![图片](images/Network/c03c6c46c2303d379ec46471dc6201cc.png)
+
+
+
+有哪些Helpers？
+
+- 随机数
+- 获取当前时间
+- map访问
+- 获取进程/cgroup 上下文
+- 处理网络数据包和转发
+- 访问套接字数据
+- 执行尾调用
+- 访问进程栈
+- 访问系统调用参数
+- ...
+
+**eBPF Tail and Function Calls**
+
+![图片](images/Network/302f58c4083847569f8f22bf27351736.png)
+
+尾调用有什么用？
+
+● 将程序链接在一起
+
+● 将程序拆分为独立的逻辑组件
+
+● 使 BPF 程序可组合
+
+函数调用有什么用？
+
+● 重用内部的功能程序
+
+● 减少程序大小（避免内联）
+
+**eBPF JIT Compiler**
+
+![图片](images/Network/31dc6c4eedaa7f21eb8ed80f7f4491fe.png)
+
+- 确保本地执行性能而不需要了解CPU
+- 将 BPF字节码编译到CPU架构特定指令集
+
+### **eBPF可以做什么？**
+
+![图片](images/Network/9d732a62c809d9bbfd5c2de6c9618f7e.png)
+
+
+
+
+
+**eBPF 开源 Projects**
+
+![图片](images/Network/1bd5250e2e6aa9350b52a829b9c7b3c2.png)
+
+**Cilium**
+
+- Cilium 是开源软件，用于Linux容器管理平台（如 Docker 和 Kubernetes）部署的服务之间的透明通信和提供安全隔离保护。
+- Cilium基于微服务的应用，使用HTTP、gRPC、Kafka等轻量级协议API相互通信。
+- Cilium 是位于 Linux kernel 与容器编排系统的中间层。向上可以为容器配置网络，向下可以向 Linux 内核生成 BPF 程序来控制容器的安全性和转发行为。
+- 利用 Linux BPF，Cilium 保留了透明地插入安全可视性 + 强制执行的能力，但这种方式基于服务 /pod/ 容器标识（与传统系统中的 IP 地址识别相反），并且可以根据应用层进行过滤 （例如 HTTP）。因此，通过将安全性与寻址分离，Cilium 不仅可以在高度动态的环境中应用安全策略，而且除了提供传统的第 3 层和第 4 层分割之外，还可以通过在 HTTP 层运行来提供更强的安全隔离。
+- BPF 的使用使得 Cilium 能够以高度可扩展的方式实现以上功能，即使对于大规模环境也不例外。
+
+![图片](images/Network/e0570d811a950dd44a2eab7b74974a36.png)
+
+![图片](images/Network/ad753703fb94370587e676f34508a3f1.png)
+
+对比传统容器网络（采用iptables/netfilter）：
+
+![图片](images/Network/1a9bf976e35e852104e6f948de512cf0.png)
+
+- eBPF主机路由允许绕过主机命名空间中所有的 iptables 和上层网络栈，以及穿过Veth对时的一些上下文切换，以节省资源开销。网络数据包到达网络接口设备时就被尽早捕获，并直接传送到Kubernetes Pod的网络命名空间中。在流量出口侧，数据包同样穿过Veth对，被eBPF捕获后，直接被传送到外部网络接口上。eBPF直接查询路由表，因此这种优化完全透明。
+- 基于eBPF中的kube-proxy网络技术正在替换基于iptables的kube-proxy技术，与Kubernetes中的原始kube-proxy相比，eBPF中的kuber-proxy替代方案具有一系列重要优势，例如更出色的性能、可靠性以及可调试性等等。
+
+**BCC(BPF Compiler Collection)**
+
+BCC 是一个框架，它使用户能够编写嵌入其中的 eBPF 程序的 Python 程序。该框架主要针对涉及应用程序和系统分析/跟踪的用例，其中 eBPF 程序用于收集统计信息或生成事件，用户空间中的对应部分收集数据并以人类可读的形式显示。运行 python 程序将生成 eBPF 字节码并将其加载到内核中。
+
+![图片](images/Network/8bbc8d75b3c4223dba0f5f674ec07c7f.png)
+
+bpftrace
+
+bpftrace 是一种用于 Linux eBPF 的高级跟踪语言，可在最近的 Linux 内核 (4.x) 中使用。bpftrace 使用 LLVM 作为后端将脚本编译为 eBPF 字节码，并利用 BCC 与 Linux eBPF 子系统以及现有的 Linux 跟踪功能进行交互：内核动态跟踪 (kprobes)、用户级动态跟踪 (uprobes) 和跟踪点. bpftrace 语言的灵感来自 awk、C 和前身跟踪器，例如 DTrace 和 SystemTap。
+
+![图片](images/Network/0efb8ea16df4eb1f02fda3af3b2f2f26.png)
+
+eBPF Go 库
+
+eBPF Go 库提供了一个通用的 eBPF 库，它将获取 eBPF 字节码的过程与 eBPF 程序的加载和管理解耦。eBPF 程序通常是通过编写高级语言创建的，然后使用 clang/LLVM 编译器编译为 eBPF 字节码。
+
+![图片](images/Network/cf50a1188d5014e7cc8294643d1675bb.png)
+
+libbpf C/C++ 库
+
+libbpf 库是一个基于 C/C++ 的通用 eBPF 库，它有助于解耦从 clang/LLVM 编译器生成的 eBPF 目标文件加载到内核中，并通过提供易于使用的库 API 来抽象与 BPF 系统调用的交互应用程序。
+
+![图片](images/Network/94fa4d2ddd9b78787527a89090df07e2.png)
+
+## XDP
+
+XDP的全称是： **eXpress Data Path**
+
+XDP 是Linux 内核中提供高性能、可编程的网络数据包处理框架。
+
+**XDP整体框架**
+
+![图片](images/Network/211505f014d3631a43b905ee63f1394f.png)
+
+- 直接接管网卡的RX数据包（类似DPDK用户态驱动）处理；
+- 通过运行BPF指令快速处理报文；
+- 和Linux协议栈无缝对接；
+
+### **XDP总体设计**
+
+![图片](images/Network/3744808ebb892f71922cbcca5091f83b.png)
+
+XDP总体设计包括以下几个部分：
+
+**XDP驱动**
+
+网卡驱动中XDP程序的一个挂载点，每当网卡接收到一个数据包就会执行这个XDP程序；XDP程序可以对数据包进行逐层解析、按规则进行过滤，或者对数据包进行封装或者解封装，修改字段对数据包进行转发等；
+
+**BPF虚拟机**
+
+并没有在图里画出来，一个XDP程序首先是由用户编写用受限制的C语言编写的，然后通过clang前端编译生成BPF字节码，字节码加载到内核之后运行在eBPF虚拟机上，虚拟机通过即时编译将XDP字节码编译成底层二进制指令；eBPF虚拟机支持XDP程序的动态加载和卸载；
+
+**BPF maps**
+
+存储键值对，作为用户态程序和内核态XDP程序、内核态XDP程序之间的通信媒介，类似于进程间通信的共享内存访问；用户态程序可以在BPF映射中预定义规则，XDP程序匹配映射中的规则对数据包进行过滤等；XDP程序将数据包统计信息存入BPF映射，用户态程序可访问BPF映射获取数据包统计信息；
+
+**BPF程序校验器**
+
+XDP程序肯定是我们自己编写的，那么如何确保XDP程序加载到内核之后不会导致内核崩溃或者带来其他的安全问题呢？程序校验器就是在将XDP字节码加载到内核之前对字节码进行安全检查，比如判断是否有循环，程序长度是否超过限制，程序内存访问是否越界，程序是否包含不可达的指令；
+
+### **XDP Action**
+
+XDP用于报文的处理，支持如下action：
+
+```crystal
+enum xdp_action {
+    XDP_ABORTED = 0,
+    XDP_DROP,
+    XDP_PASS,
+    XDP_TX,
+    XDP_REDIRECT,
+};
+```
+
+- XDP_DROP：在驱动层丢弃报文，通常用于实现DDos或防火墙
+- XDP_PASS：允许报文上送到内核网络栈，同时处理该报文的CPU会分配并填充一个skb，将其传递到GRO引擎。之后的处理与没有XDP程序的过程相同。
+- XDP_TX：从当前网卡发送出去。
+- XDP_REDIRECT：从其他网卡发送出去。
+- XDP_ABORTED：表示程序产生了异常，其行为和 XDP_DROP相同，但 XDP_ABORTED 会经过 trace_xdp_exception tracepoint，因此可以通过 tracing 工具来监控这种非正常行为。
+
+### **AF_XDP**
+
+AF_XDP 是为高性能数据包处理而优化的地址族，AF_XDP 套接字使 XDP 程序可以将帧重定向到用户空间应用程序中的内存缓冲区。
+
+**XDP设计原则**
+
+- XDP 专为高性能而设计。它使用已知技术并应用选择性约束来实现性能目标
+- XDP 还具有可编程性。无需修改内核即可即时实现新功能
+- XDP 不是内核旁路。它是内核协议栈的快速路径
+- XDP 不替代TCP/IP 协议栈。与协议栈协同工作
+- XDP 不需要任何专门的硬件。它支持网络硬件的少即是多原则
+
+**XDP技术优势**
+
+**及时处理**
+
+- 在网络协议栈前处理，由于 XDP 位于整个 Linux 内核网络软件栈的底部，能够非常早地识别并丢弃攻击报文，具有很高的性能。可以改善 iptables 协议栈丢包的性能瓶颈
+- DDIO
+- Packeting steering
+- 轮询式
+
+**高性能优化**
+
+- 无锁设计
+- 批量I/O操作
+- 不需要分配skbuff
+- 支持网络卸载
+- 支持网卡RSS
+
+**指令虚机**
+
+- 规则优化，编译成精简指令，快速执行
+- 支持热更新，可以动态扩展内核功能
+- 易编程-高级语言也可以间接在内核运行
+- 安全可靠，BPF程序先校验后执行，XDP程序没有循环
+
+**可扩展模型**
+
+- 支持应用处理（如应用层协议GRO）
+- 支持将BPF程序卸载到网卡
+- BPF程序可以移植到用户空间或其他操作系统
+
+**可编程性**
+
+- 包检测，BPF程序发现的动作
+- 灵活（无循环）协议头解析
+- 可能由于流查找而有状态
+- 简单的包字段重写（encap/decap）
+
+### **XDP 工作模式**
+
+XDP 有三种工作模式，默认是 `native`（原生）模式，当讨论 XDP 时通常隐含的都是指这 种模式。
+
+- Native XDP
+
+  默认模式，在这种模式中，XDP BPF 程序直接运行在网络驱动的早期接收路径上（ early receive path）。
+
+- Offloaded XDP
+
+  在这种模式中，XDP BPF程序直接 offload 到网卡。
+
+- Generic XDP
+
+  对于还没有实现 native 或 offloaded XDP 的驱动，内核提供了一个 generic XDP 选 项，这种设置主要面向的是用内核的 XDP API 来编写和测试程序的开发者，对于在生产环境使用XDP，推荐要么选择native要么选择offloaded模式。
+
+### **XDP vs DPDK**
+
+![图片](images/Network/d6e17d1482880c554c28eefae8ac0986.png)
+
+
+
+相对于DPDK，XDP：
+
+**优点**
+
+- 无需第三方代码库和许可
+- 同时支持轮询式和中断式网络
+- 无需分配大页
+- 无需专用的CPU
+- 无需定义新的安全网络模型
+
+**缺点**
+
+注意XDP的性能提升是有代价的，它牺牲了通用型和公平性
+
+- XDP不提供缓存队列（qdisc），TX设备太慢时直接丢包，因而不要在RX比TX快的设备上使用XDP
+- XDP程序是专用的，不具备网络协议栈的通用性
+
+**如何选择？**
+
+- 内核延伸项目，不想bypass内核的下一代高性能方案；
+- 想直接重用内核代码；
+- 不支持DPDK程序环境；
+
+**XDP适合场景**
+
+- DDoS防御
+- 防火墙
+- 基于XDP_TX的负载均衡
+- 网络统计
+- 流量监控
+- 栈前过滤/处理
+- ...
+
+**XDP例子**
+
+下面是一个最小的完整 XDP 程序，实现丢弃包的功能（`xdp-example.c`）：
+
+```cpp
+#include <linux/bpf.h>
+ 
+#ifndef __section
+# define __section(NAME)                  \
+   __attribute__((section(NAME), used))
+#endif
+ 
+__section("prog")
+int xdp_drop(struct xdp_md *ctx)
+{
+    return XDP_DROP;
+}
+ 
+char __license[] __section("license") = "GPL";
+```
+
+用下面的命令编译并加载到内核：
+
+```crystal
+$ clang -O2 -Wall -target bpf -c xdp-example.c -o xdp-example.o
+
+$ ip link set dev em1 xdp obj xdp-example.o
+```
+
+> 以上命令将一个 XDP 程序 attach 到一个网络设备，需要是 Linux 4.11 内核中支持 XDP 的设备，或者 4.12+ 版本的内核。
+
+## DPDK
+
+## VPP

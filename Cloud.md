@@ -821,6 +821,14 @@ Kubernetes主要由以下几个核心组件组成：
 - Federation提供跨可用区的集群
 - Fluentd-elasticsearch提供集群日志采集、存储与查询
 
+### minikube+client-go
+
+minikube+client-go搭建k8s开发环境
+
+https://blog.csdn.net/sunrj_niu/article/details/121147587
+
+https://www.bilibili.com/video/BV1Gb4y177WE/?spm_id_from=333.788&vd_source=ccd208a15ccdb82e28c3a107fe2d593d
+
 ### 高可用部署
 
 ![](images/cloud/fbd70e14d761789a127bec3a60e8af4d.png)
@@ -1335,6 +1343,8 @@ CNI(Container Network Interface, 容器网络接口)是K8S定义的进行容器�
 
 CNI插件是K8S插件系统中数量最多、实现花样最多的插件类型。
 
+**Cilium**
+
 **K8S如何调用CNI插件？**
 **用户配置**
 
@@ -1390,6 +1400,8 @@ CNI插件是K8S插件系统中数量最多、实现花样最多的插件类型�
 CSI(Container Storage Interface, 容器存储接口)是K8S定义的进行容器存储配置的接口标准。CSI插件是指符合CSI标准的存储配置工具。
 
 CSI支持目前主流的大多数存储方案，包括Local等各种本地存储方案和NFS等网络存储方案
+
+**Rook/Rook-ceph/Rook-nfs**
 
 ![](images/cloud/k8s-csi.png)
 
@@ -1832,6 +1844,16 @@ Reconcile 将 SidercarSet 取出之后，根据 Selector 选择匹配的 Pod，�
 5. controller 在后台不停地轮询，查看集群的状态变化。第 4 步中的注入会触发 SidecarSet 的入队，controller 就会令 SidecarSet 的 UpdatedPods 加 1。
 
 ## 其它
+
+### cluster-API
+
+一个用来简化K8S集群的部署，升级和多集群管理的框架。开放式框架，底层可插拔。支持裸机provisioning（metal3 https://metal3.io/）.
+
+http://gophercloud.io/  Openstack GoSDK
+
+### kubesphere
+
+一个开源的全技术栈（监控，日志，Devops）集成的K8s集成方案
 
 ### kubervirt
 
@@ -2562,6 +2584,45 @@ SR-IOV是让PCIE设备扩展支持硬件虚拟化的规范，具体规范可见h
 在虚拟机中使用网卡VF也产生了一个问题，就是虚拟机必须使用VF对应的驱动，这就导致虚拟机在不同物理机间的迁移受到了限制。如果两台物理机使用了不同厂商型号的网卡，由于VF驱动不同，热迁移是不可能实现的，冷迁移也要求guest系统有很好的设备自适应和配置能力。此外，如果网卡的固件和功能升级，guest中的VF驱动版本可能也需要升级，这对虚拟机的部署运维来说也是个很麻烦的问题。
 
 vDPA技术，这种技术让SR-IOV网卡的VF提供标准的virtqueue数据面接口，同时保留在驱动中自定义控制面功能的灵活性。从而解决虚拟机对特定网卡和驱动的依赖，同时保留网卡功能的多样性和可扩展性。
+
+## Netron
+
+### OVN
+
+```
+                                         CMS
+                                          |
+                                          |
+                              +-----------|-----------+
+                              |           |           |
+                              |     OVN/CMS Plugin    |
+                              |           |           |
+                              |           |           |
+                              |   OVN Northbound DB   |
+                              |           |           |
+                              |           |           |
+                              |       ovn-northd      |
+                              |           |           |
+                              +-----------|-----------+
+                                          |
+                                          |
+                                +-------------------+
+                                | OVN Southbound DB |
+                                +-------------------+
+                                          |
+                                          |
+                       +------------------+------------------+
+                       |                  |                  |
+         HV 1          |                  |    HV n          |
+       +---------------|---------------+  .  +---------------|---------------+
+       |               |               |  .  |               |               |
+       |        ovn-controller         |  .  |        ovn-controller         |
+       |         |          |          |  .  |         |          |          |
+       |         |          |          |     |         |          |          |
+       |  ovs-vswitchd   ovsdb-server  |     |  ovs-vswitchd   ovsdb-server  |
+       |                               |     |                               |
+       +-------------------------------+     +-------------------------------+
+```
 
 # hypernetes
 

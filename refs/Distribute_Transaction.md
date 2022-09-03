@@ -405,3 +405,7 @@ XA是一种分布式事务处理规范。XA规范了TM与RM之间的通信接口
 在整个事务处理过程中，数据一直处于锁住状态，即从prepare到commit、rollback的整个过程中，TM一直持有数据库的锁，如果有其他事务要修改数据库的该条数据，就必须等待锁的释放。
 
 ![一文理解分布式事务的解决方案_java_12](images/Distribute_Transaction/watermark,size_16,text_QDUxQ1RP5Y2a5a6i,color_FFFFFF,t_30,g_se,x_10,y_10,shadow_20,type_ZmFuZ3poZW5naGVpdGk=-165863088570922.png)
+
+参考：
+
+1. 分布式事务实现https://blog.csdn.net/weixin_39849287/article/details/113600651

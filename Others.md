@@ -1550,3 +1550,9 @@ https://www.yinxiang.com/everhub/
 􀁺卖方选择审查邀约，挑选潜在的卖主并与卖主就书面合同进行谈判。
 􀁺合同管理管理合同与买卖双方之间的关系，审查并记载卖主过去和现在如何履行合同，据此确定必要的纠正措施，并为确定将来与卖主的关系奠定基础，管理与合同有关的变更，并在适当的时候管理同项目以外买主的合同关系。
 􀁺合同收尾完成并解决每一个合同，包括解决所有的未决事项，并结束每一个合同。
+
+
+
+# 分布式知识点（不知道放哪里）
+
+![在这里插入图片描述](images/Others/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl8zODAwMjQ5Nw==,size_16,color_FFFFFF,t_70.png)

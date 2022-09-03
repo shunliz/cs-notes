@@ -1109,7 +1109,7 @@ kill trx_mysql_thread_id;
 
 这类型问题可以通过给 SELECT 操作加上排他锁来解决，不过这可能会引入性能问题，具体使用要视业务场景而定。
 
-
+[详细实例分析参考](refs/MySQL_Lock_Analysis.md)
 
 # 数据库事务
 
@@ -3635,6 +3635,12 @@ mysql> show variables like 'slave_parallel%';
 
 
 # 分布式关系数据库
+
+## TiDB
+
+## OceanBase
+
+## PolarDB
 
 最近市面上出现了几种“横向扩展”的SQL数据库。更棒的是，其中一些数据库可以处理地理位置分散的服务器，而不牺牲一致性。由于光速带来的限制，边远的服务器节点比本地节点需要更长的时间来更新，但几种技术可以缓解这个问题，包括使用共识组quora和超高速网络及存储。
 
