@@ -1692,6 +1692,27 @@ Fastpath Mode:
 
 两者实际上并没有本质的区别，它们的核心都是使用官方的 controller-tools 和 controller-runtime。不过细节上稍有不同，比如 kubebuilder 有着更为完善的测试与部署以及代码生成的脚手架等；而 operator-sdk 对 ansible operator 这类上层操作的支持更好一些。
 
+> **minikube安装(ubuntu 18.04)**
+> curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+>
+> sudo install minikube-linux-amd64 /usr/local/bin/minikube
+> （3）启动minikube，
+>
+> 其中虚拟机的vm-driver必须是none，物理机上可以是none，但官网说不太安全...运行minikube可选择virtualbox
+>
+> Optional: virtualbox下载安装
+>
+> minikube start --image-repository registry.cn-hangzhou.aliyuncs.com/google_containers --vm-driver=none
+> 可能会有×，但一定要等到最后！！比如我在虚拟机上运行后，出现"dashboard没有安装成功"的问题。
+>
+> 如果最后minikube安装失败，一般把minikube删掉并重新安装可以成功，命令如下：
+>
+> minikube delete
+>
+> rm /usr/local/bin/minikube
+>
+> rm -r ~/.minikube
+
 #### kuberbuildere 实战
 
 这里的实战选用的是 kuberbuilder。案例选用的是阿里云对外开放的 kruise 项目下的 SidercarSet。

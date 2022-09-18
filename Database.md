@@ -3712,6 +3712,8 @@ cassandra
 
 redis
 
+dragonfly
+
 zookeeper
 
 memcache
