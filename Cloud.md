@@ -1,6 +1,6 @@
 <div style="color:#16b0ff;font-size:50px;font-weight: 900;text-shadow: 5px 5px 10px var(--theme-color);font-family: 'Comic Sans MS';">Cloud</div>
 
-<span style="color:#16b0ff;font-size:20px;font-weight: 900;font-family: 'Comic Sans MS';">Introduction</span>：收纳技术相关的 云原生相关技术和 总结！
+<span style="color:#16b0ff;font-size:20px;font-weight: 900;font-family: 'Comic Sans MS';">Introduction</span>：收纳技术相关的 云原生相关技术和 总结！⭐🍒❤☁☠☢◣☯✔×√✘☑☝☟☹☀★☆♠█✖✈♣
 
 [TOC]
 
@@ -1672,6 +1672,10 @@ Fastpath Mode:
 4. 与此同时，controller 会在后台监测该自定义资源，按照业务逻辑，处理与该自定义资源相关联的特殊操作；
 5. 上述处理一般会引起集群内的状态变化，controller 会监测这些关联的变化，把这些变化记录到 CRD 的状态中。
 
+pod的创建过程是很好的一个例子
+
+![image-20221005185555931](images/Cloud/image-20221005185555931.png)
+
 这里是从 High-Level 大概介绍一下，后面会结合案例重新梳理。
 
 ### operator framework 实战
@@ -1940,11 +1944,61 @@ Management Cluster (管理集群) 是运行 cluster-api 组件，以及提供商
 
 ![img](images/Cloud/v2-d8d982a3ffd4f7ae497bfee9667317c5_720w.jpg)
 
+### mircok8s
+
+### helm
+
+### cilium
+
+### gpu
+
+### inaccel
+
+### istio
+
+### knative
+
+### kubeflow
+
+### linkerd
+
+### openfaas
+
+### openebs
+
+### multus
+
 ### kubesphere
 
 一个开源的全技术栈（监控，日志，Devops）集成的K8s集成方案
 
+https://www.pudn.com/news/62ee0dd255398e076b37c55e.html
+
+![img](images/Cloud/6ae86b80ee7f408f891dafdbfd18d6fb.png)
+
 ### kubervirt
+
+一套通过K8S管理虚拟机的框架
+
+```
+ +---------------------+
+  | KubeVirt            |
+~~+---------------------+~~
+  | Orchestration (K8s) |
+  +---------------------+
+  | Scheduling (K8s)    |
+  +---------------------+
+  | Container Runtime   |
+~~+---------------------+~~
+  | Operating System    |
+  +---------------------+
+  | Virtual(kvm)        |
+~~+---------------------+~~
+  | Physical            |
+  +---------------------+
+```
+
+![Architecture diagram](images/Cloud/architecture-16636908219421.png)
 
 https://www.gremwell.com/node/155 libvirt 管理Esxi
 

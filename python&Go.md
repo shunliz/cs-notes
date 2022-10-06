@@ -78,9 +78,7 @@ b:= make([]int,3,5)
 
 多个 defer 调用顺序是 LIFO（后入先出），defer后的操作可以理解为压入栈中
 
-defer，return，return value（函数返回值） 执行顺序：首先return，其次return value，最后defer。defer可以修改函数最终返回值，修改时机：**有名返回值或者函数返回指针** 参考：
-
-[【Golang】Go语言defer用法大总结(含return返回机制)__奶酪的博客-CSDN博客blog.csdn.net/Cassie_zkq/article/details/108567205
+defer，return，return value（函数返回值） 执行顺序：首先return，其次return value，最后defer。defer可以修改函数最终返回值，修改时机：**有名返回值或者函数返回指针** 
 
 **有名返回值**
 
