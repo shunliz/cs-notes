@@ -6387,7 +6387,16 @@ Constructor > @PostConstruct > InitializingBean > init-method
 5，采用nginx做动态代理
 ```
 
+## springboot starter实现
 
+starter几个要素如下图所示：![图片](images/Middleware/640.png)
+
+那么，编写starter需要哪些步骤?
+
+- 1.需要定义一个名称为xxx-spring-boot-starter的空项目，里面不包含任何代码，可以有pom.xml和pom.properties文件。
+- 2.pom.xml文件中包含了名称为xxx-spring-boot-autoconfigure的项目。
+- 3.xxx-spring-boot-autoconfigure项目中包含了名称为xxxAutoConfiguration的类，该类可以定义一些bean实例。当然，Configuration类上可以打一些如：ConditionalOnClass、ConditionalOnBean、EnableConfigurationProperties等注解。
+- 4.需要在spring.factories文件中增加key为EnableAutoConfiguration，value为xxxAutoConfiguration。
 
 # SpringCloud
 

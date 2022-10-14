@@ -4,6 +4,97 @@
 
 [TOC]
 
+# 缓存一致性
+
+**数据加载的流程如下：**
+
+将程序和数据从硬盘加载到内存中
+将程序和数据从内存加载到缓存中(目前多三级缓存，数据加载顺序:L3->L2->L1)
+CPU将缓存中的数据加载到寄存器中，并进行运算
+CPU会将数据刷新回缓存，并在一定的时间周期之后刷新回内存
+
+**缓存一致性协议发展背景**
+现在的CPU基本都是多核CPU，服务器更是提供了多CPU的支持，而每个核心也都有自己独立的缓存，当多个核心同时操作多个线程对同一个数据进行更新时，如果核心2在核心1还未将更新的数据刷回内存之前读取了数据，并进行操作，就会造成程序的执行结果造成随机性的影响，这对于我们来说是无法容忍的。
+
+而总线加锁是对整个内存进行加锁，在一个核心对一个数据进行修改的过程中，其他的核心也无法修改内存中的其他数据，这样会导致CPU处理性能严重下降。
+
+缓存一致性协议提供了一种高效的内存数据管理方案，它只会对单个缓存行（缓存行是缓存中数据存储的基本单元）的数据进行加锁，不会影响到内存中其他数据的读写。因此，我们引入了缓存一致性协议来对内存数据的读写进行管理。
+
+内存加锁是粗粒度的加锁，cache line加锁是细粒度的加锁。
+
+## MESI协议
+
+动画演示：https://www.scss.tcd.ie/Jeremy.Jones/VivioJS/caches/MESIHelp.htm
+
+缓存一致性协议有MSI，MESI，MOSI，Synapse，Firefly及DragonProtocol等等，接下来我们主要介绍MESI协议。
+
+MESI分别代表缓存行数据所处的四种状态，通过对这四种状态的切换，来达到对缓存数据进行管理的目的。
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_20,color_FFFFFF,t_70,g_se,x_16.png)
+
+MESI协议只对汇编指令中执行加锁操作的变量有效，表现到java中为使用voliate关键字定义变量或使用加锁操作
+
+对于汇编指令中执行加锁操作的变量，MESI协议在以下两种情况中也会失效:
+
+- a. CPU不支持缓存一致性协议。
+
+- b. 该变量超过一个缓存行的大小，缓存一致性协议是针对单个缓存行进行加锁，此时，缓存一致性协议无法再对该变量进行加锁，只能改用总线加锁的方式。
+
+
+**汇编指令中执行加锁操作**
+
+LOCK是一个指令前缀，也就是说LOCK会使紧跟在其后面的指令变成原子指令（atomic instruction）。
+
+LOCK指令前缀只能加在以下这些指令前面
+ `ADD，ADC，AND，BTC，BTR，BTS，CMPXCHG，CMPXCH8B，CMPXCHG16B，DEC，INC，NEG，NOT，OR，SBB，SUB，XOR，XADD，XCHG`
+
+**总线锁**
+
+在多处理器环境中，CPU提供了在指令执行期间对总线加锁的手段。CPU芯片上有一条引线LOCK，如果汇编语言的程序中在一条指令前面加上前缀“LOCK”，经过汇编以后的机器代码就是CPU在执行这条指令的时候把引线LOCK的电位拉低，持续到这条指令结束时放开，从而把总线锁住，这样同一总线上别的CPU就暂时不能通过总线访问内存了，保证了这条指令在多处理器环境中的原子性。
+
+总线锁这种做法锁定的范围太大了，导致CPU利用率急剧下降，因为使用LOCK#是把CPU和内存之间的通信锁住了，这使得锁定期间其他处理器不能操作其内存地址的数据，所以总线锁的开销比较大
+
+**缓存锁**
+
+如果访问的内存区域已经缓存在处理器的缓存行中，LOCK#信号不会被发送。它会对CPU缓存中的缓存行进行锁定，在锁定期间，其他CPU不能同时缓存此数据。在修改之后通过缓存一致性协议来保证修改的原子性。这个操作被称为“缓存锁”
+
+MESI工作原理
+缓存一致性协议通过监控独立的loads和stores指令来监控缓存同步冲突，并确保不同的处理器对于共享内存的状态有一致性的看法。当一个处理器loads或stores一个内存地址a时，它会在bus总线上广播该请求，其他的处理器和主内存都会监听总线（也称为snooping）。此处统一默认CPU为单核CPU，在多核CPU内部执行过程和以下流程一致。
+
+1、CPU1从内存中将变量a加载到缓存中，并将变量a的状态改为E（独享），并通过总线嗅探机制对内存中变量a的操作进行嗅探
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_19,color_FFFFFF,t_70,g_se,x_16.png)
+
+2、此时，CPU2读取变量a，总线嗅探机制会将CPU1中的变量a的状态置为S（共享），并将变量a加载到CPU2的缓存中，状态为S
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_20,color_FFFFFF,t_70,g_se,x_16-16650276805813.png)
+
+3、CPU1对变量a进行修改操作，此时CPU1中的变量a会被置为M（修改）状态，而CPU2中的变量a会被通知，改为I（无效）状态，此时CPU2中的变量a做的任何修改都不会被写回内存中（高并发情况下可能出现两个CPU同时修改变量a，并同时向总线发出将各自的缓存行更改为M状态的情况，此时总线会采用相应的裁决机制进行裁决，将其中一个置为M状态，另一个置为I状态，且I状态的缓存行修改无效）
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_19,color_FFFFFF,t_70,g_se,x_16-16650276923125.png)
+
+4、CPU1将修改后的数据写回内存，并将变量a置为E（独占）状态
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_17,color_FFFFFF,t_70,g_se,x_16.png)
+
+5、此时，CPU2通过总线嗅探机制得知变量a已被修改，会重新去内存中加载变量a，同时CPU1和CPU2中的变量a都改为S状态
+
+![img](images/OS/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAZGVuZ2xpbjEyMzE1,size_15,color_FFFFFF,t_70,g_se,x_16.png)
+
+在上述过程第3步中，CPU2的变量a被置为I（无效）状态后，只是保证变量a的修改不会被写回内存，但CPU2有可能会在CPU1将变量a置为E（独占）状态之前重新读取内存中的变量a，这个取决于汇编指令是否要求CPU2重新加载内存。
+
+一个缓存一致性协议的完整描述可以很复杂，但是如下是我们比较感兴趣的主要状态转换：
+
+当一个处理器请求使用exclusive模式加载load一个缓存行时，其他的处理器会将所有它们自己关于该缓存行的副本都置为invalid。任何一个已修改过自己本地的该对应缓存行的处理器都需要首先将其写回到内存中，之后第一个处理器的load请求才可以被满足。
+当一个处理器请求使用shared模式加载load一个缓存行时，任何一个以exclusive模式加载该line的处理器都必须将其状态置为shared，并且任何一个已经修改过自己本地对应缓存行的处理器都必须将该line写回主内存，之后第一个处理器的load请求才可以被满足。
+如果缓存满了，则可能需要驱逐一个缓存行。如果该line是shared或exclusive状态，那么它可以直接简单的被丢弃。但是如果该line被修改过，那么它必须被首先写回内存之后再丢弃。
+
+        MESI协议只能保证并发编程中的可见性，并未解决原子性和有序性的问题，所以只靠MESI协议是无法完全解决多线程中的所有问题。
+        MESI保证多CPU/多核系统的cache一致性——即多线程程序读写共享变量的时候，每个CPU看到的一定是这个变量的最新值。
+    
+        原子性——当前进程读写共享变量的操作不能被打断，通常通过锁总线或者锁缓存(MESI协议)来实现，具体采用锁总线还是锁缓存，取决于读写的变量位于内存还是cache中。
+    
+        有序性——属于编译优化和内存屏障范畴，不再本文讨论范围内。
 # I/O
 
 Linux/Unix常见IO模型：**阻塞（Blocking I/O）**、**非阻塞（Non-Blocking I/O）**、**IO多路复用（I/O Multiplexing）**、 **信号驱动 I/O（Signal Driven I/O）**（不常用）和**异步（Asynchronous I/O）**。网络IO操作主要涉及到**内核**和**进程**，其主要分为两个过程：
