@@ -53,6 +53,8 @@
 
 - 数据架构描述了一个组织的逻辑和物理数据资产和数据管理资源的结构。通过数据分析了解您的客户，使您能够改进和持续改进业务流程。
 
+  ![Image](images/Architecture/640.png)
+
   ![img](images/Architecture/3ea3cc52e0e5cdf1fcafa23e90e3bbc4.png)
 
 - 技术体系结构描述实现业务、数据和应用程序服务所需的软件和硬件。

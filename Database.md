@@ -1497,7 +1497,23 @@ public void addGoods(){
 
 # InnoDB引擎
 
+## mysql简介
+
+![image-20221106014154395](images/Database/image-20221106014154395.png)
+
+**myISAM**不支持事务，锁，支持全文索引，主要面向OLAP。
+
+**NDB**集群存储引擎，share nothing的内存引擎。主键查找快，join特慢，在数据库层做的，不是引擎层做的。
+
+**Memory**内存引擎，重启奔溃丢失数据。采用hash索引。
+
+![image-20221106020319829](images/Database/image-20221106020319829.png)
+
+进程通信的方式管道，命名管道，tcp/ip socket，unix socket等方式，都可用来连接mysql.
+
 ## 线程模型
+
+![image-20221106022239423](images/Database/image-20221106022239423.png)
 
 InnoDB存储引擎是多线程的模型，所以犹太有多个不同的后台线程，负责处理不同的任务，主要有：`Master Thread`、`I/O Thread`、`Purge Thread`、`Page Cleaner Thread` 四种。
 
@@ -1505,7 +1521,7 @@ InnoDB存储引擎是多线程的模型，所以犹太有多个不同的后台�
 
 **核心后台线程，主要负责将缓冲池中的数据异步刷新到磁盘，保证数据的一致性，包括脏页的刷新、合并插入缓冲(Insert Buffer)、回滚页（UNDO PAGE）的回收等。**
 
-
+![image-20221106033651077](images/Database/image-20221106033651077.png)
 
 ### I/O Thread
 
@@ -1549,7 +1565,45 @@ MySQL 5.7 版本以后，支持设置多个刷脏页线程，提高脏页处理�
 
 `SET GLOBAL innodb_page_cleaner = 3`
 
+![image-20221106022915851](images/Database/image-20221106022915851.png)
 
+数据库中的缓冲池是通过LRU（最近最少使用）算法来进行管理的。最频繁使用的页放在LRU的最前端，最少使用的放在LRU列表的尾端。当缓冲池不能存放最新读取到的页时，将首先释放LRU列表中尾端的页。
+
+Innodb引入了midpoint位置，最新页不是放入LRU的首部，而是放入midpoint位置。默认在LRU列表5/8长度处。防止某些SQL操作将缓冲池中页面刷出，影响缓冲池效率。比如索引或者数据扫描，这类操作访问许多页，甚至全部，这些页面只是这次查询需要的，并不是活跃热点数据。放入LRU首部，可能将热点数据从LRU刷出。
+
+## Checkpoint
+
+- 缩短数据库恢复时间
+- 缓冲池不够用时，将脏页刷新到磁盘
+- 重做日志不可用时，刷新脏页
+
+两种checkpoint:
+
+1. sharp checkpoint
+
+   数据库即将关闭时将所有脏页刷新回磁盘。
+
+2. fuzzy checkpoint
+
+   Master Thread Checkpoint
+
+   Flush LRU list checkpoint
+
+   Async/Sync Flush Checkpoint
+
+   Dirty Page too much Checkpoint
+
+## Innodb关键特性
+
+插入缓冲
+
+两次写
+
+自适应hash
+
+异步IO
+
+刷新临页
 
 ## 数据页
 
